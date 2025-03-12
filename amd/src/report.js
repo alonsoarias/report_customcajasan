@@ -6,11 +6,14 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 define(['jquery', 'core/notification', 'core/str'], function($, Notification, Str) {
-    // Store the current page number
-    var currentPage = 0;
+    // State management for current page and filters
+    var state = {
+        currentPage: 0,
+        filter: {}
+    };
 
     /**
-     * Load report data via AJAX
+     * Load report data via AJAX with improved handling
      */
     function loadReportData() {
         // Show loading indicator
@@ -18,7 +21,7 @@ define(['jquery', 'core/notification', 'core/str'], function($, Notification, St
 
         // Get filter values
         var formData = $('#report-form').serialize();
-        formData += '&page=' + currentPage;
+        formData += '&page=' + state.currentPage;
         formData += '&sesskey=' + M.cfg.sesskey;
 
         // Make AJAX request
@@ -31,26 +34,27 @@ define(['jquery', 'core/notification', 'core/str'], function($, Notification, St
                 if (response && response.success) {
                     // Update report content
                     $('#report-results').html(response.html);
-
+                    
+                    // Store total count in state
+                    state.totalCount = response.count;
+                    
                     // Re-initialize pagination and other dynamic elements
                     initializeDynamicElements();
-
-                    // Colorize status cells
+                    
+                    // Apply visual enhancements
                     colorizeStatusCells();
                 } else {
-                    // Show error using Moodle's notification API instead of console
-                    Str.get_string('ajax_error', 'block_report_customcajasan')
-                        .then(function(errorString) {
-                            $('#report-results').html(
-                                '<div class="alert alert-danger">' + errorString + '</div>'
-                            );
-                            return;
-                        })
-                        .catch(Notification.exception);
+                    // Show error with better message handling
+                    var errorMsg = (response && response.error) ? response.error : 
+                        M.util.get_string('ajax_error', 'block_report_customcajasan');
+                    
+                    $('#report-results').html(
+                        '<div class="alert alert-danger">' + errorMsg + '</div>'
+                    );
                 }
             },
-            error: function(xhr, status, error) {
-                // Show error using Moodle's notification API instead of console
+            error: function(xhr, status) {
+                // Show detailed error information
                 Str.get_string('ajax_error_detail', 'block_report_customcajasan')
                     .then(function(errorString) {
                         $('#report-results').html(
@@ -71,56 +75,76 @@ define(['jquery', 'core/notification', 'core/str'], function($, Notification, St
      * Initialize dynamic elements like pagination
      */
     function initializeDynamicElements() {
-        // Handle pagination clicks
-        $('.pagination .page-link').on('click', function(e) {
+        // Handle pagination with improved event delegation
+        $(document).off('click', '.pagination .page-link').on('click', '.pagination .page-link', function(e) {
             e.preventDefault();
             var page = $(this).data('page');
 
             if (page !== undefined) {
-                currentPage = page;
+                state.currentPage = page;
                 loadReportData();
+                
+                // Scroll to top of results for better UX
+                $('html, body').animate({
+                    scrollTop: $('#report-results').offset().top - 20
+                }, 200);
             }
         });
     }
 
     /**
-     * Apply colors to status cells based on status values
+     * Apply colors to status cells based on status values - updated for new status
      */
     function colorizeStatusCells() {
-        // Status cells are at column index 9 (0-based)
+        // Status cells are at column index 11 (0-based) - updated index
         $('#enrollment-report-table tbody tr').each(function() {
-            var statusCell = $(this).find('td:eq(9)'); // Estado is at column 9
+            var statusCell = $(this).find('td:eq(11)'); // Estado is at column 11 now
             var statusText = statusCell.text().trim();
 
-            if (statusText === 'COMPLETO') {
+            // Clear previous classes
+            statusCell.removeClass('bg-success bg-warning bg-info bg-secondary bg-danger text-white');
+
+            // Add appropriate class based on status - updated status values
+            if (statusText === 'APROBADO') {
                 statusCell.addClass('bg-success text-white');
-            } else if (statusText === 'EN PROGRESO') {
+            } else if (statusText === 'EN CURSO') {
                 statusCell.addClass('bg-warning');
-            } else if (statusText === 'FINALIZADO') {
-                statusCell.addClass('bg-info text-white');
-            } else if (statusText === 'CONSULTA') {
+            } else if (statusText === 'NO INICIADO') {
+                statusCell.addClass('bg-danger text-white');
+            } else if (statusText === 'SOLO CONSULTA') {
                 statusCell.addClass('bg-secondary text-white');
             }
         });
     }
 
     /**
-     * Initialize the module
+     * Initialize the module with improved filter handling
      */
     function init() {
         // Handle category change - update courses
         $('#categoryid').on('change', function() {
             var categoryId = $(this).val();
+            state.filter.category = categoryId;
+            state.currentPage = 0;
 
             // Clear course selection
             $('#courseid').empty();
             
-            // Obtener el texto de "Todos" directamente
-            var allText = M.util.get_string('option_all', 'block_report_customcajasan');
-            $('#courseid').append($('<option>', {
-                value: '',
-                text: allText
-            }));
+            // Add default "All" option
+            Str.get_string('option_all', 'block_report_customcajasan')
+                .then(function(allText) {
+                    $('#courseid').append($('<option>', {
+                        value: '',
+                        text: allText
+                    }));
+                })
+                .catch(function() {
+                    // Fallback si falla la carga del string
+                    $('#courseid').append($('<option>', {
+                        value: '',
+                        text: 'All'
+                    }));
+                });
 
             if (categoryId) {
                 // Get courses for the selected category
@@ -142,30 +166,33 @@ define(['jquery', 'core/notification', 'core/str'], function($, Notification, St
                             });
                         }
                         // Reset to page 0 and load data
-                        currentPage = 0;
+                        state.currentPage = 0;
                         loadReportData();
                     },
-                    error: function() {
-                        // Show error using Moodle's notification instead of console
-                        Notification.exception({message: 'Error loading courses'});
+                    error: function(xhr, status) {
+                        // Show error using Moodle's notification API
+                        Notification.exception({message: 'Error loading courses: ' + status});
                         // Reset to page 0 and load data anyway
-                        currentPage = 0;
+                        state.currentPage = 0;
                         loadReportData();
                     }
                 });
             } else {
                 // If no category selected, reset to page 0 and load data
-                currentPage = 0;
+                state.currentPage = 0;
                 loadReportData();
             }
         });
 
-        // Alphabet filter functionality
+        // Alphabet filter functionality with improved handling
         $('.alphabet-filter a').on('click', function(e) {
             e.preventDefault();
             var letter = $(this).data('letter');
             var target = $(this).data('target');
 
+            // Store in state
+            state.filter[target] = letter;
+            
             // Update the hidden input with the selected letter
             $('#' + target).val(letter);
 
@@ -174,37 +201,42 @@ define(['jquery', 'core/notification', 'core/str'], function($, Notification, St
             $(this).addClass('active');
 
             // Reset to page 0 and load data
-            currentPage = 0;
+            state.currentPage = 0;
             loadReportData();
         });
 
         // Handle filter form submission
         $('#report-form').on('submit', function(e) {
             e.preventDefault();
-            currentPage = 0;
+            state.currentPage = 0;
             loadReportData();
         });
 
-        // Handle filter changes
+        // Handle filter changes with clean event handling
         $('#estado, #courseid').on('change', function() {
-            currentPage = 0;
+            var id = $(this).attr('id');
+            state.filter[id] = $(this).val();
+            state.currentPage = 0;
             loadReportData();
         });
 
         // Handle date changes
         $('#startdate, #enddate').on('change', function() {
-            currentPage = 0;
+            var id = $(this).attr('id');
+            state.filter[id] = $(this).val();
+            state.currentPage = 0;
             loadReportData();
         });
 
-        // Handle idnumber input with debounce
+        // Handle idnumber input with debounce for better performance
         var idnumberTimer;
         $('#idnumber').on('input', function() {
             clearTimeout(idnumberTimer);
             idnumberTimer = setTimeout(function() {
-                currentPage = 0;
+                state.filter.idnumber = $('#idnumber').val();
+                state.currentPage = 0;
                 loadReportData();
-            }, 500); // 500ms delay
+            }, 500); // 500ms debounce delay
         });
 
         // Initial load if filters are set
@@ -212,6 +244,18 @@ define(['jquery', 'core/notification', 'core/str'], function($, Notification, St
             var hasFilters = $('#categoryid').val() || $('#courseid').val() || $('#estado').val() ||
                             $('#idnumber').val() || $('#firstname').val() || $('#lastname').val() ||
                             $('#startdate').val() || $('#enddate').val();
+
+            // Initialize state from current form values
+            state.filter = {
+                category: $('#categoryid').val(),
+                course: $('#courseid').val(),
+                estado: $('#estado').val(),
+                idnumber: $('#idnumber').val(),
+                firstname: $('#firstname').val(),
+                lastname: $('#lastname').val(),
+                startdate: $('#startdate').val(),
+                enddate: $('#enddate').val()
+            };
 
             if (hasFilters) {
                 loadReportData();

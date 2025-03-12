@@ -33,24 +33,25 @@ $string['report_customcajasan:myaddinstance'] = 'Add a new Cajasan Report block 
 $string['report_customcajasan:viewreport'] = 'View Cajasan Enrollment Report';
 
 // Table Headers
-$string['column_identificacion'] = 'IDENTIFICACIÓN';
-$string['column_nombres'] = 'NOMBRES';
-$string['column_apellidos'] = 'APELLIDOS';
-$string['column_correo'] = 'CORREO';
-$string['column_unidad'] = 'UNIDAD';
-$string['column_curso'] = 'CURSO';
-$string['column_fecha_matricula'] = 'FECHA DE MATRICULA';
-$string['column_fecha_certificado'] = 'FECHA DE EMISIÓN CERTIFICADO';
-$string['column_fecha_finalizacion'] = 'FECHA DE FINALIZACIÓN CURSO';
-$string['column_estado'] = 'ESTADO';
-$string['column_categoria'] = 'CATEGORÍA';
+$string['column_identificacion'] = 'IDENTIFICATION';
+$string['column_nombres'] = 'FIRST NAME';
+$string['column_apellidos'] = 'LAST NAME';
+$string['column_correo'] = 'EMAIL';
+$string['column_unidad'] = 'UNIT';
+$string['column_curso'] = 'COURSE';
+$string['column_fecha_matricula'] = 'ENROLLMENT DATE';
+$string['column_fecha_certificado'] = 'CERTIFICATE ISSUANCE DATE';
+$string['column_fecha_finalizacion'] = 'COURSE COMPLETION DATE';
+$string['column_estado'] = 'STATUS';
+$string['column_categoria'] = 'CATEGORY';
+$string['column_ultimo_acceso'] = 'LAST ACCESS DATE';
 
-// Status values
-$string['state_completo'] = 'COMPLETO';
-$string['state_enprogreso'] = 'EN PROGRESO';
-$string['state_finalizado'] = 'FINALIZADO';
-$string['state_consulta'] = 'CONSULTA';
-$string['status_explanation'] = 'States';
+// Status values - updated for new status values
+$string['state_aprobado'] = 'APPROVED';
+$string['state_encurso'] = 'IN PROGRESS';
+$string['state_noiniciado'] = 'NOT STARTED';
+$string['state_soloconsulta'] = 'REFERENCE ONLY';
+$string['status_explanation'] = 'Status Codes';
 
 // Form Options
 $string['option_all'] = 'All';
@@ -77,7 +78,7 @@ $string['access_denied'] = 'You do not have permission to view this report';
 $string['filters_required'] = 'You must select at least one filter to view data';
 $string['select_filter_first'] = 'Please select at least one filter to view the report data';
 $string['note_label'] = 'Note';
-$string['status_note'] = 'Courses that do not track completion or do not issue certificates have the "CONSULTA" status and will not show certificate or completion date data.';
+$string['status_note'] = 'Courses that do not track completion or do not issue certificates have the "REFERENCE ONLY" status and will not show certificate or completion date data.';
 $string['search'] = 'Search';
 
 // AJAX error messages

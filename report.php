@@ -90,19 +90,20 @@ if ($download) {
     // Get all data for download (without pagination)
     $enrollments = report_customcajasan_get_data($filters);
     
-    // Prepare headers and data for export
+    // Prepare headers and data for export - updated order
     $headers = array(
         get_string('column_identificacion', 'block_report_customcajasan'),
         get_string('column_nombres', 'block_report_customcajasan'),
         get_string('column_apellidos', 'block_report_customcajasan'),
         get_string('column_correo', 'block_report_customcajasan'),
-        get_string('column_unidad', 'block_report_customcajasan'),
         get_string('column_curso', 'block_report_customcajasan'),
+        get_string('column_categoria', 'block_report_customcajasan'),
+        get_string('column_unidad', 'block_report_customcajasan'),
         get_string('column_fecha_matricula', 'block_report_customcajasan'),
+        get_string('column_ultimo_acceso', 'block_report_customcajasan'),
         get_string('column_fecha_certificado', 'block_report_customcajasan'),
         get_string('column_fecha_finalizacion', 'block_report_customcajasan'),
-        get_string('column_estado', 'block_report_customcajasan'),
-        get_string('column_categoria', 'block_report_customcajasan')
+        get_string('column_estado', 'block_report_customcajasan')
     );
     
     $data = array();
@@ -112,13 +113,14 @@ if ($download) {
             $enrollment->nombres,
             $enrollment->apellidos,
             $enrollment->correo,
-            $enrollment->unidad,
             $enrollment->curso,
+            $enrollment->categoria,
+            $enrollment->unidad,
             $enrollment->fecha_matricula,
+            $enrollment->ultimo_acceso,
             $enrollment->fecha_certificado, 
             $enrollment->fecha_finalizacion,
-            $enrollment->estado,
-            $enrollment->categoria
+            $enrollment->estado
         );
     }
     
@@ -141,13 +143,13 @@ if ($download) {
 echo $OUTPUT->header();
 echo $OUTPUT->heading(get_string('report_title', 'block_report_customcajasan'));
 
-// Color codes for status
+// Color codes for status - updated for new status values
 echo html_writer::start_tag('div', array('class' => 'alert alert-info'));
 echo html_writer::tag('strong', get_string('status_explanation', 'block_report_customcajasan') . ': ');
-echo html_writer::tag('span', get_string('state_completo', 'block_report_customcajasan'), array('class' => 'badge badge-success p-2 mr-2'));
-echo html_writer::tag('span', get_string('state_enprogreso', 'block_report_customcajasan'), array('class' => 'badge badge-warning p-2 mr-2'));
-echo html_writer::tag('span', get_string('state_finalizado', 'block_report_customcajasan'), array('class' => 'badge badge-info p-2 mr-2'));
-echo html_writer::tag('span', get_string('state_consulta', 'block_report_customcajasan'), array('class' => 'badge badge-secondary p-2 mr-2'));
+echo html_writer::tag('span', get_string('state_aprobado', 'block_report_customcajasan'), array('class' => 'badge badge-success p-2 mr-2'));
+echo html_writer::tag('span', get_string('state_encurso', 'block_report_customcajasan'), array('class' => 'badge badge-warning p-2 mr-2'));
+echo html_writer::tag('span', get_string('state_noiniciado', 'block_report_customcajasan'), array('class' => 'badge badge-danger p-2 mr-2'));
+echo html_writer::tag('span', get_string('state_soloconsulta', 'block_report_customcajasan'), array('class' => 'badge badge-secondary p-2 mr-2'));
 echo html_writer::empty_tag('br');
 echo html_writer::tag('small', get_string('status_note', 'block_report_customcajasan'));
 echo html_writer::end_tag('div');
@@ -193,7 +195,7 @@ foreach ($courses as $course) {
 echo html_writer::select($courseoptions, 'courseid', $courseid, false, array('class' => 'form-control', 'id' => 'courseid'));
 echo html_writer::end_div();
 
-// Estado filter
+// Estado filter - with updated state options
 echo html_writer::start_div('col-md-4 mb-3');
 echo html_writer::tag('label', get_string('option_estado', 'block_report_customcajasan'), array('for' => 'estado'));
 $estadoptions = report_customcajasan_get_states();

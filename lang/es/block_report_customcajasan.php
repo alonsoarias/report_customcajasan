@@ -44,12 +44,13 @@ $string['column_fecha_certificado'] = 'FECHA DE EMISIÓN CERTIFICADO';
 $string['column_fecha_finalizacion'] = 'FECHA DE FINALIZACIÓN CURSO';
 $string['column_estado'] = 'ESTADO';
 $string['column_categoria'] = 'CATEGORÍA';
+$string['column_ultimo_acceso'] = 'ÚLTIMO ACCESO AL CURSO';
 
-// Valores de estado
-$string['state_completo'] = 'COMPLETO';
-$string['state_enprogreso'] = 'EN PROGRESO';
-$string['state_finalizado'] = 'FINALIZADO';
-$string['state_consulta'] = 'CONSULTA';
+// Valores de estado - actualizados
+$string['state_aprobado'] = 'APROBADO';
+$string['state_encurso'] = 'EN CURSO';
+$string['state_noiniciado'] = 'NO INICIADO';
+$string['state_soloconsulta'] = 'SOLO CONSULTA';
 $string['status_explanation'] = 'Estados';
 
 // Opciones de formulario
@@ -77,7 +78,7 @@ $string['access_denied'] = 'No tienes permiso para ver este informe';
 $string['filters_required'] = 'Debe seleccionar al menos un filtro para ver los datos';
 $string['select_filter_first'] = 'Por favor, seleccione al menos un filtro para ver los datos del informe';
 $string['note_label'] = 'Nota';
-$string['status_note'] = 'Los cursos que no manejan estados de finalización o no emiten certificados tienen el estado "CONSULTA" y no mostrarán datos de fecha de certificado o finalización.';
+$string['status_note'] = 'Los cursos que no manejan estados de finalización o no emiten certificados tienen el estado "SOLO CONSULTA" y no mostrarán datos de fecha de certificado o finalización.';
 $string['search'] = 'Buscar';
 
 // Mensajes de error AJAX

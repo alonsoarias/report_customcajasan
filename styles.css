@@ -6,21 +6,42 @@
     position: relative;
 }
 
-/* Estilos para estados */
+.report-results.loading:after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    margin-top: -40px;
+    margin-left: -40px;
+    width: 80px;
+    height: 80px;
+    border: 6px solid #f3f3f3;
+    border-top: 6px solid #3498db;
+    border-radius: 50%;
+    animation: spin 2s linear infinite;
+    z-index: 1000;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Estilos para estados - actualizado con los nuevos colores */
 .bg-success {
-    background-color: #28a745 !important;
+    background-color: #28a745 !important; /* APROBADO - verde */
 }
 
 .bg-warning {
-    background-color: #ffc107 !important;
+    background-color: #ffc107 !important; /* EN CURSO - amarillo */
 }
 
-.bg-info {
-    background-color: #17a2b8 !important;
+.bg-danger {
+    background-color: #dc3545 !important; /* NO INICIADO - rojo */
 }
 
 .bg-secondary {
-    background-color: #6c757d !important;
+    background-color: #6c757d !important; /* SOLO CONSULTA - gris */
 }
 
 .text-white {
@@ -65,10 +86,24 @@
 #enrollment-report-table td {
     padding: 8px;
     border: 1px solid #dee2e6;
+    vertical-align: middle; /* Alineación vertical para mejor legibilidad */
 }
 
 #enrollment-report-table tr:hover {
     background-color: #f5f5f5;
+}
+
+/* Ajustes específicos para columnas */
+#enrollment-report-table td:nth-child(5) {  /* Curso */
+    max-width: 250px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#enrollment-report-table td:nth-child(12) {  /* Estado */
+    text-align: center;
+    font-weight: bold;
 }
 
 /* Estilos para paginación */
@@ -116,6 +151,7 @@
     color: #007bff;
     background-color: #fff;
     border: 1px solid #dee2e6;
+    cursor: pointer;
 }
 
 .page-link:hover {
@@ -124,4 +160,22 @@
     text-decoration: none;
     background-color: #e9ecef;
     border-color: #dee2e6;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .alphabet-filter a {
+        padding: 2px 4px;
+        font-size: 0.7rem;
+    }
+    
+    #enrollment-report-table {
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+    
+    .page-link {
+        padding: 0.4rem 0.6rem;
+    }
 }
