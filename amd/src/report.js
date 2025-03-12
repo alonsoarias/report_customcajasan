@@ -186,6 +186,7 @@ define(['jquery', 'core/notification', 'core/str'], function($, Notification, St
                         // Reset to page 0 and load data
                         state.currentPage = 0;
                         loadReportData();
+                        updateDownloadForm(); // Actualizar campos ocultos después de cargar cursos
                     },
                     error: function(xhr, status) {
                         // Show error using Moodle's notification API
@@ -193,12 +194,14 @@ define(['jquery', 'core/notification', 'core/str'], function($, Notification, St
                         // Reset to page 0 and load data anyway
                         state.currentPage = 0;
                         loadReportData();
+                        updateDownloadForm(); // Actualizar campos ocultos incluso si hay error
                     }
                 });
             } else {
                 // If no category selected, reset to page 0 and load data
                 state.currentPage = 0;
                 loadReportData();
+                updateDownloadForm(); // Actualizar campos ocultos
             }
         });
 
@@ -221,6 +224,7 @@ define(['jquery', 'core/notification', 'core/str'], function($, Notification, St
             // Reset to page 0 and load data
             state.currentPage = 0;
             loadReportData();
+            updateDownloadForm(); // Actualizar campos ocultos después de filtrar por letra
         });
 
         // Handle filter form submission
@@ -228,6 +232,7 @@ define(['jquery', 'core/notification', 'core/str'], function($, Notification, St
             e.preventDefault();
             state.currentPage = 0;
             loadReportData();
+            updateDownloadForm(); // Actualizar campos ocultos después de enviar formulario
         });
 
         // Handle filter changes with clean event handling
@@ -236,6 +241,7 @@ define(['jquery', 'core/notification', 'core/str'], function($, Notification, St
             state.filter[id] = $(this).val();
             state.currentPage = 0;
             loadReportData();
+            updateDownloadForm(); // Actualizar campos ocultos después de cambiar selección
         });
 
         // Handle date changes
@@ -244,6 +250,7 @@ define(['jquery', 'core/notification', 'core/str'], function($, Notification, St
             state.filter[id] = $(this).val();
             state.currentPage = 0;
             loadReportData();
+            updateDownloadForm(); // Actualizar campos ocultos después de cambiar fecha
         });
 
         // Handle idnumber input with debounce for better performance
@@ -254,6 +261,7 @@ define(['jquery', 'core/notification', 'core/str'], function($, Notification, St
                 state.filter.idnumber = $('#idnumber').val();
                 state.currentPage = 0;
                 loadReportData();
+                updateDownloadForm(); // Actualizar campos ocultos después del debounce
             }, 500); // 500ms debounce delay
         });
 
@@ -261,7 +269,27 @@ define(['jquery', 'core/notification', 'core/str'], function($, Notification, St
         $('#downloadForm').on('submit', function() {
             // Update form with current filter values right before submission
             updateDownloadForm();
-            return true; // Allow form submission to continue
+            
+            // Opcional: Verificar que al menos un filtro esté aplicado
+            var hasFilters = $('#downloadForm input[name="categoryid"]').val() || 
+                             $('#downloadForm input[name="courseid"]').val() || 
+                             $('#downloadForm input[name="estado"]').val() ||
+                             $('#downloadForm input[name="idnumber"]').val() || 
+                             $('#downloadForm input[name="firstname"]').val() || 
+                             $('#downloadForm input[name="lastname"]').val() ||
+                             $('#downloadForm input[name="startdate"]').val() || 
+                             $('#downloadForm input[name="enddate"]').val();
+            
+            if (!hasFilters) {
+                // Mostrar una notificación si no hay filtros seleccionados
+                Notification.alert(
+                    '',
+                    M.util.get_string('filters_required', 'block_report_customcajasan')
+                );
+                return false; // Evitar la descarga sin filtros
+            }
+            
+            return true; // Permitir que continúe el envío del formulario
         });
 
         // Initial load if filters are set
@@ -284,6 +312,7 @@ define(['jquery', 'core/notification', 'core/str'], function($, Notification, St
 
             if (hasFilters) {
                 loadReportData();
+                updateDownloadForm(); // Actualizar campos ocultos en la carga inicial
             }
         }
 

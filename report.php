@@ -60,31 +60,86 @@ $filter_selected = !empty($categoryid) || !empty($courseid) || !empty($idnumber)
 
 // Handle download requests
 if ($download) {
-    // Prepare filter parameters
+    // Primero, verificar si hay filtros en la sesión
+    $session_filters = isset($_SESSION['report_customcajasan_filters']) ? 
+                       $_SESSION['report_customcajasan_filters'] : array();
+    
+    // Prepare filter parameters - Priorizar valores de URL, después valores de sesión
     $filters = array();
+    
+    // Categoría
     if (!empty($categoryid)) {
         $filters['category'] = $categoryid;
+    } else if (!empty($session_filters['category'])) {
+        $filters['category'] = $session_filters['category'];
     }
+    
+    // Curso
     if (!empty($courseid)) {
         $filters['course'] = $courseid;
+    } else if (!empty($session_filters['course'])) {
+        $filters['course'] = $session_filters['course'];
     }
+    
+    // ID
     if (!empty($idnumber)) {
         $filters['idnumber'] = $idnumber;
+    } else if (!empty($session_filters['idnumber'])) {
+        $filters['idnumber'] = $session_filters['idnumber'];
     }
+    
+    // Nombres
     if (!empty($firstname)) {
         $filters['firstname'] = $firstname;
+    } else if (!empty($session_filters['firstname'])) {
+        $filters['firstname'] = $session_filters['firstname'];
     }
+    
+    // Apellidos
     if (!empty($lastname)) {
         $filters['lastname'] = $lastname;
+    } else if (!empty($session_filters['lastname'])) {
+        $filters['lastname'] = $session_filters['lastname'];
     }
+    
+    // Estado
     if (!empty($estado)) {
         $filters['estado'] = $estado;
+    } else if (!empty($session_filters['estado'])) {
+        $filters['estado'] = $session_filters['estado'];
     }
+    
+    // Fechas
     if (!empty($startdate)) {
         $filters['startdate'] = strtotime($startdate);
+    } else if (!empty($session_filters['startdate'])) {
+        $filters['startdate'] = $session_filters['startdate'];
     }
+    
     if (!empty($enddate)) {
         $filters['enddate'] = strtotime($enddate . ' 23:59:59');
+    } else if (!empty($session_filters['enddate'])) {
+        $filters['enddate'] = $session_filters['enddate'];
+    }
+    
+    // Verificar que al menos un filtro esté aplicado
+    $has_filter = false;
+    foreach ($filters as $filter_value) {
+        if (!empty($filter_value)) {
+            $has_filter = true;
+            break;
+        }
+    }
+    
+    if (!$has_filter) {
+        // Redireccionar a la página del reporte con un mensaje de error
+        redirect(
+            new moodle_url('/blocks/report_customcajasan/report.php'),
+            get_string('filters_required', 'block_report_customcajasan'),
+            null,
+            \core\output\notification::NOTIFY_ERROR
+        );
+        exit;
     }
     
     // Get all data for download (without pagination)

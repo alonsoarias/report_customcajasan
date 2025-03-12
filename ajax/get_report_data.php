@@ -74,6 +74,9 @@ try {
         $filters['enddate'] = strtotime($filters['enddate'] . ' 23:59:59');
     }
     
+    // Store filters in session for download use
+    $_SESSION['report_customcajasan_filters'] = $filters;
+    
     // Pagination parameters
     $page = optional_param('page', 0, PARAM_INT);
     $perpage = optional_param('perpage', 100, PARAM_INT);
