@@ -101,7 +101,7 @@
     white-space: nowrap;
 }
 
-#enrollment-report-table td:nth-child(12) {  /* Estado */
+#enrollment-report-table td:nth-child(10) {  /* Estado - actualizado el índice después de eliminar columna */
     text-align: center;
     font-weight: bold;
 }

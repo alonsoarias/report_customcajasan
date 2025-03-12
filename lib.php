@@ -19,6 +19,7 @@
  *
  * @package    block_report_customcajasan
  * @copyright  2025 Cajasan
+ * @author     Pedro Arias <soporte@ingeweb.co>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
@@ -27,7 +28,6 @@ defined('MOODLE_INTERNAL') || die();
 require_once($CFG->libdir . '/excellib.class.php');
 require_once($CFG->libdir . '/odslib.class.php');
 require_once($CFG->libdir . '/csvlib.class.php');
-// Eliminamos la línea require_once de cachelib.php que genera el error
 
 /**
  * Get enrollment data based on filters with pagination support
@@ -51,14 +51,6 @@ function report_customcajasan_get_data($filters, $limitfrom = null, $limitnum = 
                  ($limitfrom !== null ? $limitfrom : '') . 
                  ($limitnum !== null ? $limitnum : '') . 
                  ($count_only ? 'count' : 'data'));
-    
-    // En lugar de usar caché, simplemente procedemos con la consulta
-    // Las siguientes dos líneas relacionadas con caché están comentadas
-    //$cache = cache::make('block_report_customcajasan', 'reportdata');
-    //$cached_result = $cache->get($cache_key);
-    //if ($cached_result !== false) {
-    //    return $cached_result;
-    //}
     
     // For count query, we need a much simpler query
     if ($count_only) {
@@ -89,11 +81,6 @@ function report_customcajasan_get_data($filters, $limitfrom = null, $limitnum = 
     $need_cert_joins = $cert_table_exists && 
                      (!isset($filters['estado']) || 
                       in_array($filters['estado'], ['', 'APROBADO']));
-                      
-    // Completion columns - only include these JOINs if needed
-    $need_completion_joins = $completion_table_exists && 
-                           (!isset($filters['estado']) || 
-                            in_array($filters['estado'], ['', 'APROBADO', 'EN CURSO']));
     
     if ($cert_table_exists) {
         if ($need_cert_joins) {
@@ -111,26 +98,13 @@ function report_customcajasan_get_data($filters, $limitfrom = null, $limitnum = 
                 NULL AS fecha_certificado";
     }
     
-    if ($completion_table_exists) {
-        if ($need_completion_joins) {
-            $sql .= ",
-                    CASE WHEN cc.timecompleted IS NOT NULL THEN FROM_UNIXTIME(cc.timecompleted) ELSE NULL END AS fecha_finalizacion";
-        } else {
-            $sql .= ",
-                    NULL AS fecha_finalizacion";
-        }
-    } else {
-        $sql .= ",
-                NULL AS fecha_finalizacion";
-    }
-    
     // Status determination with updated status values
     $sql .= ",
             CASE 
                 WHEN (ci.id IS NOT NULL OR cc.timecompleted IS NOT NULL) THEN 'APROBADO'
                 WHEN (l.id IS NOT NULL OR cc.timestarted IS NOT NULL) THEN 'EN CURSO'
                 WHEN (l.id IS NULL AND (cc.timestarted IS NULL OR cc.timestarted = 0)) THEN 'NO INICIADO'
-                WHEN (cert.id IS NULL AND (cm.completion = 0 OR cm.completion IS NULL)) THEN 'SOLO CONSULTA'
+                WHEN (cert.id IS NULL) THEN 'SOLO CONSULTA'
                 ELSE 'NO INICIADO'
             END AS estado";
     
@@ -164,9 +138,9 @@ function report_customcajasan_get_data($filters, $limitfrom = null, $limitnum = 
     }
     
     // Add conditional JOINs only if tables exist and needed
-    if ($completion_table_exists && $need_completion_joins) {
+    if ($completion_table_exists) {
         $sql .= " LEFT JOIN {course_completions} cc ON cc.userid = u.id AND cc.course = c.id";
-    } else if ($completion_table_exists) {
+    } else {
         // Use a lightweight join that won't return data but keeps the query structure intact
         $sql .= " LEFT JOIN (SELECT NULL AS timecompleted, NULL AS timestarted, NULL AS userid, NULL AS course) cc ON cc.userid = u.id AND cc.course = c.id";
     }
@@ -222,9 +196,7 @@ function report_customcajasan_get_data($filters, $limitfrom = null, $limitnum = 
             $sql .= " AND l.id IS NULL AND (cc.timestarted IS NULL OR cc.timestarted = 0) AND cc.timecompleted IS NULL AND ci.id IS NULL";
         } else if ($filters['estado'] === 'SOLO CONSULTA') {
             if ($cert_table_exists) {
-                $sql .= " AND cert.id IS NULL AND (cm.completion = 0 OR cm.completion IS NULL)";
-            } else {
-                $sql .= " AND (cm.completion = 0 OR cm.completion IS NULL)";
+                $sql .= " AND cert.id IS NULL";
             }
         }
     }
@@ -245,7 +217,7 @@ function report_customcajasan_get_data($filters, $limitfrom = null, $limitnum = 
     if ($cert_table_exists && $need_cert_joins) {
         $sql .= ", cert.id, ci.id, ci.timecreated";
     }
-    if ($completion_table_exists && $need_completion_joins) {
+    if ($completion_table_exists) {
         $sql .= ", cc.timecompleted, cc.timestarted";
     }
     
@@ -253,9 +225,6 @@ function report_customcajasan_get_data($filters, $limitfrom = null, $limitnum = 
     
     // Get results with pagination if specified
     $result = $DB->get_records_sql($sql, $params, $limitfrom, $limitnum);
-    
-    // Cache the result - comentado para evitar uso de la caché
-    //$cache->set($cache_key, $result);
     
     return $result;
 }
@@ -273,16 +242,6 @@ function report_customcajasan_count_data($filters) {
     $dbman = $DB->get_manager();
     $cert_table_exists = $dbman->table_exists('customcert_issues');
     $completion_table_exists = $dbman->table_exists('course_completions');
-    
-    // Cache key for this query - comentado para evitar errores de caché
-    //$cache_key = 'report_cajasan_count_' . md5(serialize($filters));
-    //$cache = cache::make('block_report_customcajasan', 'reportdata');
-    
-    // Try from cache first - comentado
-    //$cached_count = $cache->get($cache_key);
-    //if ($cached_count !== false) {
-    //    return $cached_count;
-    //}
     
     // For count, use a much simpler query with COUNT(DISTINCT) to optimize performance
     $sql = "SELECT COUNT(DISTINCT CONCAT(u.id, '_', c.id)) 
@@ -373,10 +332,9 @@ function report_customcajasan_count_data($filters) {
                 $sql .= " AND ci.id IS NULL";
             }
         } else if ($filters['estado'] === 'SOLO CONSULTA') {
-            if ($cert_table_exists && $need_cert_joins) {
+            if ($cert_table_exists) {
                 $sql .= " AND cert.id IS NULL";
             }
-            $sql .= " AND (cm.completion = 0 OR cm.completion IS NULL)";
         }
     }
     
@@ -393,9 +351,6 @@ function report_customcajasan_count_data($filters) {
     
     // Single count query is much faster than retrieving all records
     $count = $DB->count_records_sql($sql, $params);
-    
-    // Cache the count result - comentado para evitar errores
-    //$cache->set($cache_key, $count);
     
     return $count;
 }
@@ -455,8 +410,7 @@ function report_customcajasan_export_spreadsheet($headers, $data, $filename, $fo
     $worksheet->set_column(7, 7, 20);  // Fecha de matricula
     $worksheet->set_column(8, 8, 20);  // Último acceso al curso
     $worksheet->set_column(9, 9, 20);  // Fecha de emisión certificado
-    $worksheet->set_column(10, 10, 20);  // Fecha finalización curso
-    $worksheet->set_column(11, 11, 15);  // Estado
+    $worksheet->set_column(10, 10, 15);  // Estado
 
     // Header format
     $headerformat = $workbook->add_format();

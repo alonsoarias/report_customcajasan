@@ -19,13 +19,14 @@
  *
  * @package    block_report_customcajasan
  * @copyright  2025 Cajasan
+ * @author     Pedro Arias <soporte@ingeweb.co>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->version   = 2025031406;        // The current plugin version (Date: YYYYMMDDXX)
+$plugin->version   = 2025031407;        // The current plugin version (Date: YYYYMMDDXX)
 $plugin->requires  = 2022041900;        // Requires Moodle 4.0+
 $plugin->component = 'block_report_customcajasan'; // Full name of the plugin
 $plugin->maturity  = MATURITY_STABLE;
-$plugin->release   = '1.3';             // Updated with new column and status values
+$plugin->release   = '1.4';             // Updated with modified status logic and column removal

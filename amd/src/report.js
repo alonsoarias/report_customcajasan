@@ -3,6 +3,7 @@
  *
  * @module     block_report_customcajasan/report
  * @copyright  2025 Cajasan
+ * @author     Pedro Arias <soporte@ingeweb.co>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 define(['jquery', 'core/notification', 'core/str'], function($, Notification, Str) {
@@ -114,9 +115,9 @@ define(['jquery', 'core/notification', 'core/str'], function($, Notification, St
      * Apply colors to status cells based on status values - updated for new status
      */
     function colorizeStatusCells() {
-        // Status cells are at column index 11 (0-based) - updated index
+        // Status cells are at column index 10 (0-based) - updated index after removing fecha_finalizacion
         $('#enrollment-report-table tbody tr').each(function() {
-            var statusCell = $(this).find('td:eq(11)'); // Estado is at column 11 now
+            var statusCell = $(this).find('td:eq(10)'); // Estado is at column 10 now
             var statusText = statusCell.text().trim();
 
             // Clear previous classes

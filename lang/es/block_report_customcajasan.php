@@ -19,18 +19,19 @@
  *
  * @package    block_report_customcajasan
  * @copyright  2025 Cajasan
+ * @author     Pedro Arias <soporte@ingeweb.co>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
 // Nombre del plugin
-$string['pluginname'] = 'Informe Personalizado Cajasan';
-$string['report_customcajasan'] = 'Informe de Matriculación Cajasan';
-$string['enrollment_report'] = 'Informe de Matriculaciones';
+$string['pluginname'] = 'Informe de Seguimiento y Estado de Cursos';
+$string['report_customcajasan'] = 'Informe de Seguimiento y Estado de Cursos';
+$string['enrollment_report'] = 'Informe de Seguimiento y Estado de Cursos';
 
 // Capacidades
-$string['report_customcajasan:addinstance'] = 'Añadir un nuevo bloque de Informe Cajasan';
-$string['report_customcajasan:myaddinstance'] = 'Añadir un nuevo bloque de Informe Cajasan a Mi Moodle';
-$string['report_customcajasan:viewreport'] = 'Ver Informe de Matriculación Cajasan';
+$string['report_customcajasan:addinstance'] = 'Añadir un nuevo bloque de Informe de Seguimiento y Estado de Cursos';
+$string['report_customcajasan:myaddinstance'] = 'Añadir un nuevo bloque de Informe de Seguimiento y Estado de Cursos a Mi Moodle';
+$string['report_customcajasan:viewreport'] = 'Ver Informe de Seguimiento y Estado de Cursos';
 
 // Cabeceras de tabla
 $string['column_identificacion'] = 'IDENTIFICACIÓN';
@@ -41,7 +42,6 @@ $string['column_unidad'] = 'UNIDAD';
 $string['column_curso'] = 'CURSO';
 $string['column_fecha_matricula'] = 'FECHA DE MATRICULA';
 $string['column_fecha_certificado'] = 'FECHA DE EMISIÓN CERTIFICADO';
-$string['column_fecha_finalizacion'] = 'FECHA DE FINALIZACIÓN CURSO';
 $string['column_estado'] = 'ESTADO';
 $string['column_categoria'] = 'CATEGORÍA';
 $string['column_ultimo_acceso'] = 'ÚLTIMO ACCESO AL CURSO';
@@ -67,7 +67,7 @@ $string['option_download_ods'] = 'ODS';
 $string['option_download_csv'] = 'CSV';
 
 // Otros
-$string['report_title'] = 'Informe de Matriculaciones';
+$string['report_title'] = 'Informe de Seguimiento y Estado de Cursos';
 $string['btn_download'] = 'Descargar';
 $string['total_records'] = 'Total de Registros';
 $string['idnumber'] = 'Número de Identificación';
@@ -78,7 +78,7 @@ $string['access_denied'] = 'No tienes permiso para ver este informe';
 $string['filters_required'] = 'Debe seleccionar al menos un filtro para ver los datos';
 $string['select_filter_first'] = 'Por favor, seleccione al menos un filtro para ver los datos del informe';
 $string['note_label'] = 'Nota';
-$string['status_note'] = 'Los cursos que no manejan estados de finalización o no emiten certificados tienen el estado "SOLO CONSULTA" y no mostrarán datos de fecha de certificado o finalización.';
+$string['status_note'] = 'Los cursos que no emiten certificados tienen el estado "SOLO CONSULTA".';
 $string['search'] = 'Buscar';
 
 // Mensajes de error AJAX

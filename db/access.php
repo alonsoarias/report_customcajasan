@@ -19,6 +19,7 @@
  *
  * @package    block_report_customcajasan
  * @copyright  2025 Cajasan
+ * @author     Pedro Arias <soporte@ingeweb.co>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 

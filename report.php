@@ -19,6 +19,7 @@
  *
  * @package    block_report_customcajasan
  * @copyright  2025 Cajasan
+ * @author     Pedro Arias <soporte@ingeweb.co>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
@@ -157,7 +158,6 @@ if ($download) {
         get_string('column_fecha_matricula', 'block_report_customcajasan'),
         get_string('column_ultimo_acceso', 'block_report_customcajasan'),
         get_string('column_fecha_certificado', 'block_report_customcajasan'),
-        get_string('column_fecha_finalizacion', 'block_report_customcajasan'),
         get_string('column_estado', 'block_report_customcajasan')
     );
     
@@ -174,7 +174,6 @@ if ($download) {
             $enrollment->fecha_matricula,
             $enrollment->ultimo_acceso,
             $enrollment->fecha_certificado, 
-            $enrollment->fecha_finalizacion,
             $enrollment->estado
         );
     }
