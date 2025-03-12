@@ -31,6 +31,13 @@ require_login();
 $systemcontext = context_system::instance();
 require_capability('block/report_customcajasan:viewreport', $systemcontext);
 
+// Aumentar límites para permitir la generación de reportes grandes
+if (function_exists('set_time_limit')) {
+    set_time_limit(0); // Sin límite de tiempo para procesar reportes grandes
+}
+// Aumentar memoria usando el valor definido por el administrador
+raise_memory_limit(MEMORY_EXTRA);
+
 // Page setup
 $PAGE->set_context($systemcontext);
 $PAGE->set_url(new moodle_url('/blocks/report_customcajasan/report.php'));
@@ -143,54 +150,18 @@ if ($download) {
         exit;
     }
     
-    // Get all data for download (without pagination)
-    $enrollments = report_customcajasan_get_data($filters);
-    
-    // Prepare headers and data for export - updated order
-    $headers = array(
-        get_string('column_identificacion', 'block_report_customcajasan'),
-        get_string('column_nombres', 'block_report_customcajasan'),
-        get_string('column_apellidos', 'block_report_customcajasan'),
-        get_string('column_correo', 'block_report_customcajasan'),
-        get_string('column_curso', 'block_report_customcajasan'),
-        get_string('column_categoria', 'block_report_customcajasan'),
-        get_string('column_unidad', 'block_report_customcajasan'),
-        get_string('column_fecha_matricula', 'block_report_customcajasan'),
-        get_string('column_ultimo_acceso', 'block_report_customcajasan'),
-        get_string('column_fecha_certificado', 'block_report_customcajasan'),
-        get_string('column_estado', 'block_report_customcajasan')
-    );
-    
-    $data = array();
-    foreach ($enrollments as $enrollment) {
-        $data[] = array(
-            $enrollment->identificacion,
-            $enrollment->nombres,
-            $enrollment->apellidos,
-            $enrollment->correo,
-            $enrollment->curso,
-            $enrollment->categoria,
-            $enrollment->unidad,
-            $enrollment->fecha_matricula,
-            $enrollment->ultimo_acceso,
-            $enrollment->fecha_certificado, 
-            $enrollment->estado
-        );
-    }
-    
-    // Export data in selected format
+    // Para descargas, ahora usamos las nuevas funciones optimizadas, sin cargar todos los datos en memoria primero
     if ($format === 'csv') {
-        report_customcajasan_export_csv($headers, $data, 'enrollment_report');
+        report_customcajasan_export_csv($filters, 'enrollment_report');
     } else {
         report_customcajasan_export_spreadsheet(
-            $headers, 
-            $data, 
+            $filters, 
             'enrollment_report', 
             $format, 
             get_string('report_title', 'block_report_customcajasan')
         );
     }
-    exit;
+    // La función de exportación ya incluye exit(), por lo que no es necesario aquí
 }
 
 // Display form and report
@@ -384,6 +355,7 @@ $perpageoptions = array(
     '100' => '100',
     '200' => '200',
     '500' => '500',
+    '1000' => '1000',
     '0' => get_string('all_records', 'block_report_customcajasan')
 );
 echo html_writer::select($perpageoptions, 'perpage', $perpage, false, array('class' => 'form-control d-inline w-auto', 'id' => 'perpage'));
@@ -402,6 +374,28 @@ echo html_writer::empty_tag('input', array('type' => 'hidden', 'name' => 'lastna
 echo html_writer::empty_tag('input', array('type' => 'hidden', 'name' => 'estado', 'value' => $estado));
 echo html_writer::empty_tag('input', array('type' => 'hidden', 'name' => 'startdate', 'value' => $startdate));
 echo html_writer::empty_tag('input', array('type' => 'hidden', 'name' => 'enddate', 'value' => $enddate));
+
+// Añadir mensaje de aviso para descargas grandes
+if ($filter_selected) {
+    $total_records = report_customcajasan_count_data(array(
+        'category' => $categoryid,
+        'course' => $courseid,
+        'idnumber' => $idnumber,
+        'firstname' => $firstname,
+        'lastname' => $lastname,
+        'estado' => $estado,
+        'startdate' => !empty($startdate) ? strtotime($startdate) : '',
+        'enddate' => !empty($enddate) ? strtotime($enddate . ' 23:59:59') : ''
+    ));
+    
+    if ($total_records > 1000) {
+        echo html_writer::tag('div', 
+            '<i class="fa fa-info-circle"></i> ' . 
+            'La descarga de ' . $total_records . ' registros puede tardar varios minutos. Por favor, espere a que el proceso termine.',
+            array('class' => 'alert alert-info download-warning mb-3 p-2')
+        );
+    }
+}
 
 // Format selection
 echo html_writer::start_div('form-group');
