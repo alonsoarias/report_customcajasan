@@ -15,7 +15,7 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * AJAX endpoint to get report data
+ * AJAX endpoint to get report data - Optimizado para mejor rendimiento
  *
  * @package    block_report_customcajasan
  * @copyright  2025 Cajasan
@@ -26,6 +26,13 @@
 define('AJAX_SCRIPT', true);
 require_once(__DIR__ . '/../../../config.php');
 require_once($CFG->dirroot . '/blocks/report_customcajasan/lib.php');
+
+// Aumentar límites para permitir procesamiento de grandes conjuntos de datos
+if (function_exists('set_time_limit')) {
+    set_time_limit(300); // 5 minutos para AJAX
+}
+// Aumentar límite de memoria usando la configuración definida por el administrador
+raise_memory_limit(MEMORY_EXTRA);
 
 // Check user login
 require_login(null, false);
@@ -82,9 +89,9 @@ try {
     $page = optional_param('page', 0, PARAM_INT);
     $perpage = optional_param('perpage', 100, PARAM_INT);
     
-    // Si perpage es 0, mostramos todos los registros
+    // Si perpage es 0, limitar a un máximo razonable para AJAX para evitar problemas de rendimiento
     if ($perpage == 0) {
-        $perpage = PHP_INT_MAX; // Usar un valor grande para mostrar todos los registros
+        $perpage = 1000; // Límite razonable para AJAX - el usuario todavía puede descargar todos usando la funcionalidad de descarga
     }
     
     // Get total count using optimized query
@@ -167,14 +174,14 @@ try {
         $html .= custom_paging_bar($totalcount, $page, $perpage, $baseurl);
     }
     
-    // JSON response
+    // JSON response optimizado para tamaño
     $response = array(
         'success' => true,
         'html' => $html,
         'count' => $totalcount
     );
     
-    // Send JSON response
+    // Send JSON response - sin formato adicional para reducir tamaño
     echo json_encode($response);
     
 } catch (Exception $e) {
