@@ -27,7 +27,7 @@ defined('MOODLE_INTERNAL') || die();
 require_once($CFG->libdir . '/excellib.class.php');
 require_once($CFG->libdir . '/odslib.class.php');
 require_once($CFG->libdir . '/csvlib.class.php');
-require_once($CFG->libdir . '/cachelib.php');
+// Eliminamos la línea require_once de cachelib.php que genera el error
 
 /**
  * Get enrollment data based on filters with pagination support
@@ -51,13 +51,14 @@ function report_customcajasan_get_data($filters, $limitfrom = null, $limitnum = 
                  ($limitfrom !== null ? $limitfrom : '') . 
                  ($limitnum !== null ? $limitnum : '') . 
                  ($count_only ? 'count' : 'data'));
-    $cache = cache::make('block_report_customcajasan', 'reportdata');
     
-    // Try to get from cache first
-    $cached_result = $cache->get($cache_key);
-    if ($cached_result !== false) {
-        return $cached_result;
-    }
+    // En lugar de usar caché, simplemente procedemos con la consulta
+    // Las siguientes dos líneas relacionadas con caché están comentadas
+    //$cache = cache::make('block_report_customcajasan', 'reportdata');
+    //$cached_result = $cache->get($cache_key);
+    //if ($cached_result !== false) {
+    //    return $cached_result;
+    //}
     
     // For count query, we need a much simpler query
     if ($count_only) {
@@ -253,8 +254,8 @@ function report_customcajasan_get_data($filters, $limitfrom = null, $limitnum = 
     // Get results with pagination if specified
     $result = $DB->get_records_sql($sql, $params, $limitfrom, $limitnum);
     
-    // Cache the result
-    $cache->set($cache_key, $result);
+    // Cache the result - comentado para evitar uso de la caché
+    //$cache->set($cache_key, $result);
     
     return $result;
 }
@@ -273,15 +274,15 @@ function report_customcajasan_count_data($filters) {
     $cert_table_exists = $dbman->table_exists('customcert_issues');
     $completion_table_exists = $dbman->table_exists('course_completions');
     
-    // Cache key for this query
-    $cache_key = 'report_cajasan_count_' . md5(serialize($filters));
-    $cache = cache::make('block_report_customcajasan', 'reportdata');
+    // Cache key for this query - comentado para evitar errores de caché
+    //$cache_key = 'report_cajasan_count_' . md5(serialize($filters));
+    //$cache = cache::make('block_report_customcajasan', 'reportdata');
     
-    // Try from cache first
-    $cached_count = $cache->get($cache_key);
-    if ($cached_count !== false) {
-        return $cached_count;
-    }
+    // Try from cache first - comentado
+    //$cached_count = $cache->get($cache_key);
+    //if ($cached_count !== false) {
+    //    return $cached_count;
+    //}
     
     // For count, use a much simpler query with COUNT(DISTINCT) to optimize performance
     $sql = "SELECT COUNT(DISTINCT CONCAT(u.id, '_', c.id)) 
@@ -393,8 +394,8 @@ function report_customcajasan_count_data($filters) {
     // Single count query is much faster than retrieving all records
     $count = $DB->count_records_sql($sql, $params);
     
-    // Cache the count result
-    $cache->set($cache_key, $count);
+    // Cache the count result - comentado para evitar errores
+    //$cache->set($cache_key, $count);
     
     return $count;
 }
