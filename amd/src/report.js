@@ -13,6 +13,21 @@ define(['jquery', 'core/notification', 'core/str'], function($, Notification, St
     };
 
     /**
+     * Update hidden fields in the download form with current filter values
+     */
+    function updateDownloadForm() {
+        // Update each hidden field in the download form
+        $('#downloadForm input[name="categoryid"]').val($('#categoryid').val());
+        $('#downloadForm input[name="courseid"]').val($('#courseid').val());
+        $('#downloadForm input[name="idnumber"]').val($('#idnumber').val());
+        $('#downloadForm input[name="firstname"]').val($('#firstname').val());
+        $('#downloadForm input[name="lastname"]').val($('#lastname').val());
+        $('#downloadForm input[name="estado"]').val($('#estado').val());
+        $('#downloadForm input[name="startdate"]').val($('#startdate').val());
+        $('#downloadForm input[name="enddate"]').val($('#enddate').val());
+    }
+
+    /**
      * Load report data via AJAX with improved handling
      */
     function loadReportData() {
@@ -43,6 +58,9 @@ define(['jquery', 'core/notification', 'core/str'], function($, Notification, St
                     
                     // Apply visual enhancements
                     colorizeStatusCells();
+                    
+                    // Update download form with current filters
+                    updateDownloadForm();
                 } else {
                     // Show error with better message handling
                     var errorMsg = (response && response.error) ? response.error : 
@@ -237,6 +255,13 @@ define(['jquery', 'core/notification', 'core/str'], function($, Notification, St
                 state.currentPage = 0;
                 loadReportData();
             }, 500); // 500ms debounce delay
+        });
+
+        // Initialize download button to update form fields before submission
+        $('#downloadForm').on('submit', function() {
+            // Update form with current filter values right before submission
+            updateDownloadForm();
+            return true; // Allow form submission to continue
         });
 
         // Initial load if filters are set
