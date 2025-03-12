@@ -32,21 +32,34 @@ $string['report_customcajasan:addinstance'] = 'Añadir un nuevo bloque de Inform
 $string['report_customcajasan:myaddinstance'] = 'Añadir un nuevo bloque de Informe Cajasan a Mi Moodle';
 $string['report_customcajasan:viewreport'] = 'Ver Informe de Matriculación Cajasan';
 
-// Cabeceras de tabla - Exactamente como se muestra en la imagen
+// Cabeceras de tabla
 $string['column_identificacion'] = 'IDENTIFICACIÓN';
-$string['column_nombre'] = 'NOMBRE';
+$string['column_nombres'] = 'NOMBRES';
+$string['column_apellidos'] = 'APELLIDOS';
 $string['column_correo'] = 'CORREO';
 $string['column_unidad'] = 'UNIDAD';
 $string['column_curso'] = 'CURSO';
 $string['column_fecha_matricula'] = 'FECHA DE MATRICULA';
-$string['column_fecha_finalizacion'] = 'FECHA DE FINALIZACIÓN';  // Ahora se refiere a la fecha de emisión del certificado
+$string['column_fecha_certificado'] = 'FECHA DE EMISIÓN CERTIFICADO';
+$string['column_fecha_finalizacion'] = 'FECHA DE FINALIZACIÓN CURSO';
 $string['column_estado'] = 'ESTADO';
 $string['column_categoria'] = 'CATEGORÍA';
+
+// Valores de estado
+$string['state_completo'] = 'COMPLETO';
+$string['state_enprogreso'] = 'EN PROGRESO';
+$string['state_finalizado'] = 'FINALIZADO';
+$string['state_consulta'] = 'CONSULTA';
+$string['status_explanation'] = 'Estados';
 
 // Opciones de formulario
 $string['option_all'] = 'Todos';
 $string['option_category'] = 'Categoría';
 $string['option_course'] = 'Curso';
+$string['option_firstname'] = 'Nombre';
+$string['option_lastname'] = 'Apellido';
+$string['option_estado'] = 'Estado';
+$string['option_filter_by_letter'] = 'Filtrar por letra';
 $string['option_download_format'] = 'Formato de descarga';
 $string['option_download_excel'] = 'Excel';
 $string['option_download_ods'] = 'ODS';
@@ -61,8 +74,24 @@ $string['start_date'] = 'Fecha de Inicio';
 $string['end_date'] = 'Fecha de Fin';
 $string['no_data'] = 'No se encontraron datos de matriculación';
 $string['access_denied'] = 'No tienes permiso para ver este informe';
-$string['certificate_not_issued'] = 'Certificado no emitido';
-$string['certificate_date_note'] = 'En este informe, el campo "FECHA DE FINALIZACIÓN" muestra la fecha de emisión del certificado. Si aparece "No emitido", significa que aún no se ha emitido un certificado para este curso.';
 $string['filters_required'] = 'Debe seleccionar al menos un filtro para ver los datos';
 $string['select_filter_first'] = 'Por favor, seleccione al menos un filtro para ver los datos del informe';
-$string['note_label'] = 'Nota';  // Nueva cadena para la etiqueta "Nota"
+$string['note_label'] = 'Nota';
+$string['status_note'] = 'Los cursos que no manejan estados de finalización o no emiten certificados tienen el estado "CONSULTA" y no mostrarán datos de fecha de certificado o finalización.';
+$string['search'] = 'Buscar';
+
+// Mensajes de error AJAX
+$string['ajax_error'] = 'Error al cargar datos. Por favor, inténtelo de nuevo.';
+$string['ajax_error_detail'] = 'Error al cargar datos';
+
+// Cadenas para DataTables
+$string['showing'] = 'Mostrando';
+$string['to'] = 'a';
+$string['of'] = 'de';
+$string['entries'] = 'registros';
+$string['filtered_from'] = 'filtrado de';
+$string['total'] = 'total';
+$string['first'] = 'Primero';
+$string['last'] = 'Último';
+$string['next'] = 'Siguiente';
+$string['previous'] = 'Anterior';

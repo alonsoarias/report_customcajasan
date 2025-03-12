@@ -27,25 +27,52 @@ define('AJAX_SCRIPT', true);
 require_once(__DIR__ . '/../../../config.php');
 require_once($CFG->dirroot . '/blocks/report_customcajasan/lib.php');
 
-// Verify AJAX parameters
-$categoryid = required_param('categoryid', PARAM_INT);
-
 // Check user login
 require_login(null, false);
-require_sesskey();
+
+// Verify AJAX parameters
+$categoryid = optional_param('categoryid', 0, PARAM_INT);
+
+// Verificar sesskey
+if (!confirm_sesskey()) {
+    $error = array(
+        'success' => false,
+        'error' => 'Invalid session key'
+    );
+    echo json_encode($error);
+    die();
+}
 
 // Check capability
 $systemcontext = context_system::instance();
-require_capability('block/report_customcajasan:viewreport', $systemcontext);
+try {
+    require_capability('block/report_customcajasan:viewreport', $systemcontext);
+} catch (Exception $e) {
+    $error = array(
+        'success' => false,
+        'error' => 'Permission denied: ' . $e->getMessage()
+    );
+    echo json_encode($error);
+    die();
+}
 
-// Get courses
-$courses = report_customcajasan_get_courses($categoryid);
-
-// Format response
-$response = array(
-    'success' => true,
-    'courses' => array_values($courses)
-);
-
-// Send JSON response
-echo json_encode($response);
+try {
+    // Get courses
+    $courses = report_customcajasan_get_courses($categoryid);
+    
+    // Format response
+    $response = array(
+        'success' => true,
+        'courses' => array_values($courses),
+        'count' => count($courses)
+    );
+    
+    // Send JSON response
+    echo json_encode($response);
+} catch (Exception $e) {
+    $error = array(
+        'success' => false,
+        'error' => 'Error getting courses: ' . $e->getMessage()
+    );
+    echo json_encode($error);
+}

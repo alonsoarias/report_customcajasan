@@ -32,21 +32,34 @@ $string['report_customcajasan:addinstance'] = 'Add a new Cajasan Report block';
 $string['report_customcajasan:myaddinstance'] = 'Add a new Cajasan Report block to the My Moodle page';
 $string['report_customcajasan:viewreport'] = 'View Cajasan Enrollment Report';
 
-// Table Headers - Exactly as shown in the image
+// Table Headers
 $string['column_identificacion'] = 'IDENTIFICACIÓN';
-$string['column_nombre'] = 'NOMBRE';
+$string['column_nombres'] = 'NOMBRES';
+$string['column_apellidos'] = 'APELLIDOS';
 $string['column_correo'] = 'CORREO';
 $string['column_unidad'] = 'UNIDAD';
 $string['column_curso'] = 'CURSO';
 $string['column_fecha_matricula'] = 'FECHA DE MATRICULA';
-$string['column_fecha_finalizacion'] = 'FECHA DE FINALIZACIÓN';  // Now refers to certificate issue date
+$string['column_fecha_certificado'] = 'FECHA DE EMISIÓN CERTIFICADO';
+$string['column_fecha_finalizacion'] = 'FECHA DE FINALIZACIÓN CURSO';
 $string['column_estado'] = 'ESTADO';
 $string['column_categoria'] = 'CATEGORÍA';
+
+// Status values
+$string['state_completo'] = 'COMPLETO';
+$string['state_enprogreso'] = 'EN PROGRESO';
+$string['state_finalizado'] = 'FINALIZADO';
+$string['state_consulta'] = 'CONSULTA';
+$string['status_explanation'] = 'States';
 
 // Form Options
 $string['option_all'] = 'All';
 $string['option_category'] = 'Category';
 $string['option_course'] = 'Course';
+$string['option_firstname'] = 'First Name';
+$string['option_lastname'] = 'Last Name';
+$string['option_estado'] = 'Status';
+$string['option_filter_by_letter'] = 'Filter by letter';
 $string['option_download_format'] = 'Download Format';
 $string['option_download_excel'] = 'Excel';
 $string['option_download_ods'] = 'ODS';
@@ -61,8 +74,24 @@ $string['start_date'] = 'Start Date';
 $string['end_date'] = 'End Date';
 $string['no_data'] = 'No enrollment data found';
 $string['access_denied'] = 'You do not have permission to view this report';
-$string['certificate_not_issued'] = 'Certificate not issued';
-$string['certificate_date_note'] = 'In this report, the "FECHA DE FINALIZACIÓN" field shows the certificate issue date. If "No emitido" appears, it means that a certificate has not yet been issued for this course.';
 $string['filters_required'] = 'You must select at least one filter to view data';
 $string['select_filter_first'] = 'Please select at least one filter to view the report data';
-$string['note_label'] = 'Note';  // Nueva cadena para la etiqueta "Nota"
+$string['note_label'] = 'Note';
+$string['status_note'] = 'Courses that do not track completion or do not issue certificates have the "CONSULTA" status and will not show certificate or completion date data.';
+$string['search'] = 'Search';
+
+// AJAX error messages
+$string['ajax_error'] = 'Error loading data. Please try again.';
+$string['ajax_error_detail'] = 'Failed to load data';
+
+// DataTables strings
+$string['showing'] = 'Showing';
+$string['to'] = 'to';
+$string['of'] = 'of';
+$string['entries'] = 'entries';
+$string['filtered_from'] = 'filtered from';
+$string['total'] = 'total';
+$string['first'] = 'First';
+$string['last'] = 'Last';
+$string['next'] = 'Next';
+$string['previous'] = 'Previous';

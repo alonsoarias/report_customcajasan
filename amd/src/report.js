@@ -5,7 +5,105 @@
  * @copyright  2025 Cajasan
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-define(['jquery'], function($) {
+define(['jquery', 'core/notification', 'core/str'], function($, Notification, Str) {
+    // Store the current page number
+    var currentPage = 0;
+
+    /**
+     * Load report data via AJAX
+     */
+    function loadReportData() {
+        // Show loading indicator
+        $('#report-results').addClass('loading');
+
+        // Get filter values
+        var formData = $('#report-form').serialize();
+        formData += '&page=' + currentPage;
+        formData += '&sesskey=' + M.cfg.sesskey;
+
+        // Make AJAX request
+        $.ajax({
+            url: M.cfg.wwwroot + '/blocks/report_customcajasan/ajax/get_report_data.php',
+            type: 'GET',
+            data: formData,
+            dataType: 'json',
+            success: function(response) {
+                if (response && response.success) {
+                    // Update report content
+                    $('#report-results').html(response.html);
+
+                    // Re-initialize pagination and other dynamic elements
+                    initializeDynamicElements();
+
+                    // Colorize status cells
+                    colorizeStatusCells();
+                } else {
+                    // Show error using Moodle's notification API instead of console
+                    Str.get_string('ajax_error', 'block_report_customcajasan')
+                        .then(function(errorString) {
+                            $('#report-results').html(
+                                '<div class="alert alert-danger">' + errorString + '</div>'
+                            );
+                            return;
+                        })
+                        .catch(Notification.exception);
+                }
+            },
+            error: function(xhr, status, error) {
+                // Show error using Moodle's notification API instead of console
+                Str.get_string('ajax_error_detail', 'block_report_customcajasan')
+                    .then(function(errorString) {
+                        $('#report-results').html(
+                            '<div class="alert alert-danger">' + errorString + ': ' + status + '</div>'
+                        );
+                        return;
+                    })
+                    .catch(Notification.exception);
+            },
+            complete: function() {
+                // Hide loading indicator
+                $('#report-results').removeClass('loading');
+            }
+        });
+    }
+
+    /**
+     * Initialize dynamic elements like pagination
+     */
+    function initializeDynamicElements() {
+        // Handle pagination clicks
+        $('.pagination .page-link').on('click', function(e) {
+            e.preventDefault();
+            var page = $(this).data('page');
+
+            if (page !== undefined) {
+                currentPage = page;
+                loadReportData();
+            }
+        });
+    }
+
+    /**
+     * Apply colors to status cells based on status values
+     */
+    function colorizeStatusCells() {
+        // Status cells are at column index 9 (0-based)
+        $('#enrollment-report-table tbody tr').each(function() {
+            var statusCell = $(this).find('td:eq(9)'); // Estado is at column 9
+            var statusText = statusCell.text().trim();
+
+            if (statusText === 'COMPLETO') {
+                statusCell.addClass('bg-success text-white');
+            } else if (statusText === 'EN PROGRESO') {
+                statusCell.addClass('bg-warning');
+            } else if (statusText === 'FINALIZADO') {
+                statusCell.addClass('bg-info text-white');
+            } else if (statusText === 'CONSULTA') {
+                statusCell.addClass('bg-secondary text-white');
+            }
+        });
+    }
+
     /**
      * Initialize the module
      */
@@ -13,14 +111,17 @@ define(['jquery'], function($) {
         // Handle category change - update courses
         $('#categoryid').on('change', function() {
             var categoryId = $(this).val();
-            
+
             // Clear course selection
             $('#courseid').empty();
+            
+            // Obtener el texto de "Todos" directamente
+            var allText = M.util.get_string('option_all', 'block_report_customcajasan');
             $('#courseid').append($('<option>', {
                 value: '',
-                text: M.util.get_string('option_all', 'block_report_customcajasan')
+                text: allText
             }));
-            
+
             if (categoryId) {
                 // Get courses for the selected category
                 $.ajax({
@@ -40,52 +141,87 @@ define(['jquery'], function($) {
                                 }));
                             });
                         }
+                        // Reset to page 0 and load data
+                        currentPage = 0;
+                        loadReportData();
                     },
                     error: function() {
-                        // Just use the default empty selection in case of error
-                        require(['core/log'], function(log) {
-                            log.debug('Error loading courses.');
-                        });
+                        // Show error using Moodle's notification instead of console
+                        Notification.exception({message: 'Error loading courses'});
+                        // Reset to page 0 and load data anyway
+                        currentPage = 0;
+                        loadReportData();
                     }
                 });
+            } else {
+                // If no category selected, reset to page 0 and load data
+                currentPage = 0;
+                loadReportData();
             }
         });
-        
-        // Initialize datatable if library is available
-        if ($.fn.DataTable) {
-            $('#enrollment-report-table').DataTable({
-                "paging": true,
-                "searching": true,
-                "ordering": true,
-                "info": true,
-                "responsive": true,
-                "pageLength": 25,
-                "language": {
-                    "search": M.util.get_string('search'),
-                    "lengthMenu": M.util.get_string('show') +
-                        " _MENU_ " + M.util.get_string('entries'),
-                    "info": M.util.get_string('showing') +
-                        " _START_ " + M.util.get_string('to') +
-                        " _END_ " + M.util.get_string('of') +
-                        " _TOTAL_ " + M.util.get_string('entries'),
-                    "infoEmpty": M.util.get_string('showing') +
-                        " 0 " + M.util.get_string('to') +
-                        " 0 " + M.util.get_string('of') +
-                        " 0 " + M.util.get_string('entries'),
-                    "infoFiltered": "(" + M.util.get_string('filtered_from') +
-                        " _MAX_ " + M.util.get_string('total') +
-                        " " + M.util.get_string('entries') + ")",
-                    "paginate": {
-                        "first": M.util.get_string('first'),
-                        "last": M.util.get_string('last'),
-                        "next": M.util.get_string('next'),
-                        "previous": M.util.get_string('previous')
-                    }
-                }
-            });
+
+        // Alphabet filter functionality
+        $('.alphabet-filter a').on('click', function(e) {
+            e.preventDefault();
+            var letter = $(this).data('letter');
+            var target = $(this).data('target');
+
+            // Update the hidden input with the selected letter
+            $('#' + target).val(letter);
+
+            // Update the UI to show active letter
+            $(this).closest('.alphabet-filter').find('a').removeClass('active');
+            $(this).addClass('active');
+
+            // Reset to page 0 and load data
+            currentPage = 0;
+            loadReportData();
+        });
+
+        // Handle filter form submission
+        $('#report-form').on('submit', function(e) {
+            e.preventDefault();
+            currentPage = 0;
+            loadReportData();
+        });
+
+        // Handle filter changes
+        $('#estado, #courseid').on('change', function() {
+            currentPage = 0;
+            loadReportData();
+        });
+
+        // Handle date changes
+        $('#startdate, #enddate').on('change', function() {
+            currentPage = 0;
+            loadReportData();
+        });
+
+        // Handle idnumber input with debounce
+        var idnumberTimer;
+        $('#idnumber').on('input', function() {
+            clearTimeout(idnumberTimer);
+            idnumberTimer = setTimeout(function() {
+                currentPage = 0;
+                loadReportData();
+            }, 500); // 500ms delay
+        });
+
+        // Initial load if filters are set
+        if ($('#report-results').length) {
+            var hasFilters = $('#categoryid').val() || $('#courseid').val() || $('#estado').val() ||
+                            $('#idnumber').val() || $('#firstname').val() || $('#lastname').val() ||
+                            $('#startdate').val() || $('#enddate').val();
+
+            if (hasFilters) {
+                loadReportData();
+            }
         }
+
+        // Initialize any existing dynamic elements
+        initializeDynamicElements();
     }
-    
+
     return {
         init: init
     };

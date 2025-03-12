@@ -15,7 +15,7 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Block report_customcajasan provides enrollment reports.
+ * Block definition class for report_customcajasan
  *
  * @package    block_report_customcajasan
  * @copyright  2025 Cajasan
@@ -25,7 +25,7 @@
 defined('MOODLE_INTERNAL') || die();
 
 /**
- * Block report_customcajasan class definition.
+ * Class block_report_customcajasan
  *
  * @package    block_report_customcajasan
  * @copyright  2025 Cajasan
