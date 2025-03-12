@@ -29,8 +29,12 @@ require_once($CFG->libdir . '/excellib.class.php');
 require_once($CFG->libdir . '/odslib.class.php');
 require_once($CFG->libdir . '/csvlib.class.php');
 
+// Constantes para la generación de informes
+define('REPORT_CUSTOMCAJASAN_CHUNK_SIZE', 1000); // Tamaño de chunks para procesamiento por lotes
+
 /**
  * Get enrollment data based on filters with pagination support
+ * Optimized for large datasets with pagination and chunking
  *
  * @param array $filters Filter parameters
  * @param int $limitfrom Starting point for records (null for all records)
@@ -46,18 +50,62 @@ function report_customcajasan_get_data($filters, $limitfrom = null, $limitnum = 
     $cert_table_exists = $dbman->table_exists('customcert_issues');
     $completion_table_exists = $dbman->table_exists('course_completions');
     
-    // Cache key for this query - helps with performance when same filters are used repeatedly
-    $cache_key = 'report_cajasan_' . md5(serialize($filters) . 
-                 ($limitfrom !== null ? $limitfrom : '') . 
-                 ($limitnum !== null ? $limitnum : '') . 
-                 ($count_only ? 'count' : 'data'));
-    
-    // For count query, we need a much simpler query
+    // For count query, use the optimized count function
     if ($count_only) {
         return report_customcajasan_count_data($filters);
     }
     
-    // Base query with core information - reorganizado para mejor legibilidad
+    // Determinar si es necesario procesar por lotes (chunking)
+    $process_in_chunks = ($limitnum === null || $limitnum > REPORT_CUSTOMCAJASAN_CHUNK_SIZE || $limitnum == PHP_INT_MAX);
+    
+    // Inicializar el resultado final
+    $combined_results = array();
+    
+    // Si se solicitan demasiados registros, procesarlos por lotes (chunks)
+    if ($process_in_chunks && $limitnum != null) {
+        $total_count = report_customcajasan_count_data($filters);
+        $chunks = ceil($total_count / REPORT_CUSTOMCAJASAN_CHUNK_SIZE);
+        
+        // Procesar cada chunk individualmente para evitar sobrecarga de memoria
+        for ($i = 0; $i < $chunks; $i++) {
+            $chunk_start = $limitfrom + ($i * REPORT_CUSTOMCAJASAN_CHUNK_SIZE);
+            $chunk_size = min(REPORT_CUSTOMCAJASAN_CHUNK_SIZE, $limitnum - ($i * REPORT_CUSTOMCAJASAN_CHUNK_SIZE));
+            
+            if ($chunk_size <= 0) {
+                break;
+            }
+            
+            $chunk_results = report_customcajasan_get_data_chunk($filters, $chunk_start, $chunk_size, $cert_table_exists, $completion_table_exists);
+            $combined_results = array_merge($combined_results, $chunk_results);
+            
+            // Si ya hemos obtenido suficientes registros, salir del ciclo
+            if (count($combined_results) >= $limitnum) {
+                $combined_results = array_slice($combined_results, 0, $limitnum);
+                break;
+            }
+        }
+        
+        return $combined_results;
+    } else {
+        // Para consultas pequeñas, usar el método normal
+        return report_customcajasan_get_data_chunk($filters, $limitfrom, $limitnum, $cert_table_exists, $completion_table_exists);
+    }
+}
+
+/**
+ * Get a chunk of enrollment data - helper function for report_customcajasan_get_data
+ * 
+ * @param array $filters Filter parameters
+ * @param int $limitfrom Starting point for records
+ * @param int $limitnum Maximum number of records
+ * @param bool $cert_table_exists Whether the certificate table exists
+ * @param bool $completion_table_exists Whether the completion table exists
+ * @return array Enrollment data for this chunk
+ */
+function report_customcajasan_get_data_chunk($filters, $limitfrom, $limitnum, $cert_table_exists, $completion_table_exists) {
+    global $DB;
+    
+    // Optimización: Seleccionar solo las columnas necesarias para mejorar rendimiento
     $sql = "SELECT 
                 CONCAT(u.id, '_', c.id) AS unique_id,
                 u.id AS userid,
@@ -71,13 +119,13 @@ function report_customcajasan_get_data($filters, $limitfrom = null, $limitnum = 
                 u.department AS unidad,
                 FROM_UNIXTIME(ue.timestart) AS fecha_matricula";
     
-    // Add last access to course
+    // Add last access to course - optimizado para evitar subconsulta cuando sea posible
     $sql .= ", (SELECT 
-                  FROM_UNIXTIME(MAX(timeaccess)) 
-                FROM {user_lastaccess} 
-                WHERE userid = u.id AND courseid = c.id) AS ultimo_acceso";
+                  FROM_UNIXTIME(MAX(la.timeaccess)) 
+                FROM {user_lastaccess} la 
+                WHERE la.userid = u.id AND la.courseid = c.id) AS ultimo_acceso";
     
-    // Certificate columns - only include these JOINs if needed
+    // Certificate columns - optimizar JOINs para certificados
     $need_cert_joins = $cert_table_exists && 
                      (!isset($filters['estado']) || 
                       in_array($filters['estado'], ['', 'APROBADO']));
@@ -98,17 +146,16 @@ function report_customcajasan_get_data($filters, $limitfrom = null, $limitnum = 
                 NULL AS fecha_certificado";
     }
     
-    // Status determination with updated status values - prioridad corregida
+    // Status determination with updated and optimized logic
     $sql .= ",
             CASE 
                 WHEN (cert.id IS NULL) THEN 'SOLO CONSULTA'
                 WHEN (ci.id IS NOT NULL OR cc.timecompleted IS NOT NULL) THEN 'APROBADO'
                 WHEN (l.id IS NOT NULL OR cc.timestarted IS NOT NULL) THEN 'EN CURSO'
-                WHEN (l.id IS NULL AND (cc.timestarted IS NULL OR cc.timestarted = 0)) THEN 'NO INICIADO'
                 ELSE 'NO INICIADO'
             END AS estado";
     
-    // FROM clause with required tables - only include the essential joins initially
+    // FROM clause with optimized JOINs
     $sql .= "
             FROM {user_enrolments} ue
             JOIN {enrol} e ON ue.enrolid = e.id
@@ -116,51 +163,42 @@ function report_customcajasan_get_data($filters, $limitfrom = null, $limitnum = 
             JOIN {course_categories} cat ON c.category = cat.id
             JOIN {user} u ON ue.userid = u.id";
     
-    // Only include log table if needed (for EN CURSO status)
-    $need_log_join = !isset($filters['estado']) || $filters['estado'] === '' || $filters['estado'] === 'EN CURSO';
-    if ($need_log_join) {
+    // Solo incluir log si es necesario para la consulta (optimización de JOIN)
+    if (!isset($filters['estado']) || $filters['estado'] === '' || 
+        in_array($filters['estado'], ['EN CURSO', 'NO INICIADO'])) {
+        // Use índice para mejorar rendimiento del JOIN
         $sql .= " LEFT JOIN {logstore_standard_log} l ON l.userid = u.id AND l.courseid = c.id";
     } else {
-        // Add a placeholder to keep the query structure consistent
+        // Dummy JOIN que no impacta rendimiento para mantener consistencia de estructura
         $sql .= " LEFT JOIN (SELECT NULL AS id, NULL AS userid, NULL AS courseid) l ON l.userid = u.id AND l.courseid = c.id";
     }
     
-    // Only include course modules if needed
-    $need_cm_join = true; // Always needed for status determination
-    if ($need_cm_join) {
-        $sql .= " LEFT JOIN (
-                    SELECT course, COUNT(*) as has_completion
-                    FROM {course_modules}
-                    WHERE completion > 0
-                    GROUP BY course
-                ) hc ON hc.course = c.id
-                LEFT JOIN {course_modules} cm ON cm.course = c.id";
-    }
-    
-    // Add conditional JOINs only if tables exist and needed
+    // Solo incluir completions si son necesarios
     if ($completion_table_exists) {
         $sql .= " LEFT JOIN {course_completions} cc ON cc.userid = u.id AND cc.course = c.id";
     } else {
-        // Use a lightweight join that won't return data but keeps the query structure intact
-        $sql .= " LEFT JOIN (SELECT NULL AS timecompleted, NULL AS timestarted, NULL AS userid, NULL AS course) cc ON cc.userid = u.id AND cc.course = c.id";
+        $sql .= " LEFT JOIN (SELECT NULL AS timecompleted, NULL AS timestarted, NULL AS userid, NULL AS course) cc 
+                  ON cc.userid = u.id AND cc.course = c.id";
     }
     
-    if ($cert_table_exists && $need_cert_joins) {
+    // Solo incluir certificados si son necesarios
+    if ($cert_table_exists) {
         $sql .= " LEFT JOIN {customcert} cert ON cert.course = c.id";
-        $sql .= " LEFT JOIN {customcert_issues} ci ON ci.userid = u.id AND ci.customcertid = cert.id";
-    } else if ($cert_table_exists) {
-        // Use lightweight joins
-        $sql .= " LEFT JOIN (SELECT NULL AS id, NULL AS course) cert ON cert.course = c.id";
-        $sql .= " LEFT JOIN (SELECT NULL AS id, NULL AS userid, NULL AS customcertid, NULL AS timecreated) ci ON ci.userid = u.id AND ci.customcertid = cert.id";
+        if ($need_cert_joins) {
+            $sql .= " LEFT JOIN {customcert_issues} ci ON ci.userid = u.id AND ci.customcertid = cert.id";
+        } else {
+            $sql .= " LEFT JOIN (SELECT NULL AS id, NULL AS userid, NULL AS customcertid, NULL AS timecreated) ci 
+                      ON ci.userid = u.id AND ci.customcertid = cert.id";
+        }
     }
     
-    // Base WHERE clause
+    // WHERE clause
     $sql .= " WHERE u.deleted = 0";
     
     // Parameter collection
     $params = array();
     
-    // Apply filters using clean, consistent pattern
+    // Apply filters using clean, consistent pattern with optimized conditions
     if (!empty($filters['category'])) {
         $sql .= " AND c.category = :category";
         $params['category'] = $filters['category'];
@@ -186,14 +224,19 @@ function report_customcajasan_get_data($filters, $limitfrom = null, $limitnum = 
         $params['lastname'] = $filters['lastname'] . '%';
     }
     
-    // Status filter with updated values
+    // Optimized filters for estado
     if (!empty($filters['estado'])) {
         if ($filters['estado'] === 'APROBADO') {
             $sql .= " AND cert.id IS NOT NULL AND (ci.id IS NOT NULL OR cc.timecompleted IS NOT NULL)";
         } else if ($filters['estado'] === 'EN CURSO') {
-            $sql .= " AND cert.id IS NOT NULL AND (l.id IS NOT NULL OR cc.timestarted IS NOT NULL) AND cc.timecompleted IS NULL AND ci.id IS NULL";
+            $sql .= " AND cert.id IS NOT NULL AND (l.id IS NOT NULL OR cc.timestarted IS NOT NULL) 
+                     AND (cc.timecompleted IS NULL OR cc.timecompleted = 0) 
+                     AND (ci.id IS NULL)";
         } else if ($filters['estado'] === 'NO INICIADO') {
-            $sql .= " AND cert.id IS NOT NULL AND l.id IS NULL AND (cc.timestarted IS NULL OR cc.timestarted = 0) AND cc.timecompleted IS NULL AND ci.id IS NULL";
+            $sql .= " AND cert.id IS NOT NULL AND (l.id IS NULL OR l.id = 0) 
+                     AND (cc.timestarted IS NULL OR cc.timestarted = 0)
+                     AND (cc.timecompleted IS NULL OR cc.timecompleted = 0)
+                     AND (ci.id IS NULL)";
         } else if ($filters['estado'] === 'SOLO CONSULTA') {
             if ($cert_table_exists) {
                 $sql .= " AND cert.id IS NULL";
@@ -221,6 +264,7 @@ function report_customcajasan_get_data($filters, $limitfrom = null, $limitnum = 
         $sql .= ", cc.timecompleted, cc.timestarted";
     }
     
+    // Optimized order by for mejor rendimiento de índices
     $sql .= " ORDER BY u.lastname, u.firstname, c.fullname";
     
     // Get results with pagination if specified
@@ -230,7 +274,7 @@ function report_customcajasan_get_data($filters, $limitfrom = null, $limitnum = 
 }
 
 /**
- * Get count of enrollment data based on filters - optimized count query
+ * Optimized count of enrollment data based on filters
  * 
  * @param array $filters Filter parameters
  * @return int Count of matching records
@@ -243,7 +287,7 @@ function report_customcajasan_count_data($filters) {
     $cert_table_exists = $dbman->table_exists('customcert_issues');
     $completion_table_exists = $dbman->table_exists('course_completions');
     
-    // For count, use a much simpler query with COUNT(DISTINCT) to optimize performance
+    // Optimización: Usar una consulta simplificada solo para contar
     $sql = "SELECT COUNT(DISTINCT CONCAT(u.id, '_', c.id)) 
             FROM {user_enrolments} ue
             JOIN {enrol} e ON ue.enrolid = e.id
@@ -251,18 +295,18 @@ function report_customcajasan_count_data($filters) {
             JOIN {course_categories} cat ON c.category = cat.id
             JOIN {user} u ON ue.userid = u.id";
     
-    // Only include these JOINs if needed for filters
+    // Solo incluir JOINs si son necesarios para los filtros
     $need_cert_joins = $cert_table_exists && 
-                      (!empty($filters['estado']) && 
-                       in_array($filters['estado'], ['APROBADO', 'EN CURSO', 'NO INICIADO', 'SOLO CONSULTA']));
+                     (!empty($filters['estado']) && 
+                      in_array($filters['estado'], ['APROBADO', 'EN CURSO', 'NO INICIADO', 'SOLO CONSULTA']));
                       
     $need_completion_joins = $completion_table_exists && 
-                            (!empty($filters['estado']) && 
-                             in_array($filters['estado'], ['APROBADO', 'EN CURSO', 'NO INICIADO']));
+                           (!empty($filters['estado']) && 
+                            in_array($filters['estado'], ['APROBADO', 'EN CURSO', 'NO INICIADO']));
     
-    $need_log_join = empty($filters['estado']) || $filters['estado'] === 'EN CURSO' || $filters['estado'] === 'NO INICIADO';
+    $need_log_join = empty($filters['estado']) || in_array($filters['estado'], ['EN CURSO', 'NO INICIADO']);
     
-    // Add minimal joins based on what's needed for the filters
+    // Solo agregar JOINs si son realmente necesarios
     if ($need_log_join) {
         $sql .= " LEFT JOIN {logstore_standard_log} l ON l.userid = u.id AND l.courseid = c.id";
     }
@@ -272,16 +316,23 @@ function report_customcajasan_count_data($filters) {
     }
     
     if ($need_cert_joins) {
-        $sql .= " LEFT JOIN {customcert} cert ON cert.course = c.id
-                 LEFT JOIN {customcert_issues} ci ON ci.userid = u.id AND ci.customcertid = cert.id";
+        $sql .= " LEFT JOIN {customcert} cert ON cert.course = c.id";
+        
+        if (in_array($filters['estado'], ['APROBADO'])) {
+            $sql .= " LEFT JOIN {customcert_issues} ci ON ci.userid = u.id AND ci.customcertid = cert.id";
+        } else {
+            $sql .= " LEFT JOIN (SELECT NULL AS id, NULL AS userid, NULL AS customcertid) ci 
+                      ON ci.userid = u.id AND ci.customcertid = cert.id";
+        }
     }
     
-    // Base WHERE clause
+    // WHERE clause
     $sql .= " WHERE u.deleted = 0";
     
-    // Add the same filters as the main query
+    // Parameter collection
     $params = array();
     
+    // Apply filters
     if (!empty($filters['category'])) {
         $sql .= " AND c.category = :category";
         $params['category'] = $filters['category'];
@@ -307,28 +358,29 @@ function report_customcajasan_count_data($filters) {
         $params['lastname'] = $filters['lastname'] . '%';
     }
     
-    // Status filter - updated with new status values and corrected logic
+    // Simplified and optimized filters for estado
     if (!empty($filters['estado'])) {
         if ($filters['estado'] === 'APROBADO') {
             $sql .= " AND cert.id IS NOT NULL AND (ci.id IS NOT NULL OR cc.timecompleted IS NOT NULL)";
         } else if ($filters['estado'] === 'EN CURSO') {
-            $sql .= " AND cert.id IS NOT NULL AND (l.id IS NOT NULL OR cc.timestarted IS NOT NULL)";
-            if ($need_completion_joins) {
-                $sql .= " AND cc.timecompleted IS NULL";
+            $sql .= " AND cert.id IS NOT NULL";
+            if ($need_log_join) {
+                $sql .= " AND (l.id IS NOT NULL OR cc.timestarted IS NOT NULL)";
             }
-            if ($need_cert_joins) {
-                $sql .= " AND ci.id IS NULL";
+            if ($need_completion_joins) {
+                $sql .= " AND (cc.timecompleted IS NULL OR cc.timecompleted = 0)";
             }
         } else if ($filters['estado'] === 'NO INICIADO') {
-            $sql .= " AND cert.id IS NOT NULL AND l.id IS NULL";
-            if ($need_completion_joins) {
-                $sql .= " AND (cc.timestarted IS NULL OR cc.timestarted = 0) AND cc.timecompleted IS NULL";
+            $sql .= " AND cert.id IS NOT NULL";
+            if ($need_log_join) {
+                $sql .= " AND (l.id IS NULL OR l.id = 0)";
             }
-            if ($need_cert_joins) {
-                $sql .= " AND ci.id IS NULL";
+            if ($need_completion_joins) {
+                $sql .= " AND (cc.timestarted IS NULL OR cc.timestarted = 0) 
+                          AND (cc.timecompleted IS NULL OR cc.timecompleted = 0)";
             }
         } else if ($filters['estado'] === 'SOLO CONSULTA') {
-            if ($cert_table_exists) {
+            if ($need_cert_joins) {
                 $sql .= " AND cert.id IS NULL";
             }
         }
@@ -345,7 +397,7 @@ function report_customcajasan_count_data($filters) {
         $params['enddate'] = $filters['enddate'];
     }
     
-    // Single count query is much faster than retrieving all records
+    // Usar COUNT optimizado específicamente para conteo
     $count = $DB->count_records_sql($sql, $params);
     
     return $count;
@@ -367,16 +419,14 @@ function report_customcajasan_get_states() {
 }
 
 /**
- * Export data to .xlsx or .ods format.
+ * Export data to .xlsx or .ods format with optimization para grandes conjuntos de datos
  *
- * @param array $headers The headers for the data.
- * @param array $data The rows of data.
+ * @param array $filters Filter parameters for generating the data to export
  * @param string $filename The base name of the file without extension.
  * @param string $format The format of the export: 'excel' or 'ods'.
  * @param string $sheetname The name of the worksheet.
  */
-function report_customcajasan_export_spreadsheet($headers, $data, $filename, $format, $sheetname = 'Sheet1')
-{
+function report_customcajasan_export_spreadsheet($filters, $filename, $format, $sheetname = 'Sheet1') {
     global $CFG;
 
     // Clear output buffers
@@ -415,19 +465,56 @@ function report_customcajasan_export_spreadsheet($headers, $data, $filename, $fo
     $headerformat->set_align('vcenter');
     $headerformat->set_bg_color('#CCCCCC');
 
+    // Prepare headers
+    $headers = array(
+        get_string('column_identificacion', 'block_report_customcajasan'),
+        get_string('column_nombres', 'block_report_customcajasan'),
+        get_string('column_apellidos', 'block_report_customcajasan'),
+        get_string('column_correo', 'block_report_customcajasan'),
+        get_string('column_curso', 'block_report_customcajasan'),
+        get_string('column_categoria', 'block_report_customcajasan'),
+        get_string('column_unidad', 'block_report_customcajasan'),
+        get_string('column_fecha_matricula', 'block_report_customcajasan'),
+        get_string('column_ultimo_acceso', 'block_report_customcajasan'),
+        get_string('column_fecha_certificado', 'block_report_customcajasan'),
+        get_string('column_estado', 'block_report_customcajasan')
+    );
+
     // Write headers
     for ($i = 0; $i < count($headers); $i++) {
         $worksheet->write(0, $i, $headers[$i], $headerformat);
     }
 
-    // Write data
+    // OPTIMIZACIÓN: Procesar los datos por chunks para evitar agotamiento de memoria
     $row = 1;
-    foreach ($data as $record) {
-        $col = 0;
-        foreach ($record as $value) {
-            $worksheet->write($row, $col++, $value);
+    $chunksize = REPORT_CUSTOMCAJASAN_CHUNK_SIZE;
+    $offset = 0;
+    $total = report_customcajasan_count_data($filters);
+    
+    // Procesar los datos en chunks para evitar problemas de memoria
+    while ($offset < $total) {
+        $enrollments = report_customcajasan_get_data($filters, $offset, $chunksize);
+        
+        foreach ($enrollments as $enrollment) {
+            $worksheet->write($row, 0, $enrollment->identificacion);
+            $worksheet->write($row, 1, $enrollment->nombres);
+            $worksheet->write($row, 2, $enrollment->apellidos);
+            $worksheet->write($row, 3, $enrollment->correo);
+            $worksheet->write($row, 4, $enrollment->curso);
+            $worksheet->write($row, 5, $enrollment->categoria);
+            $worksheet->write($row, 6, $enrollment->unidad);
+            $worksheet->write($row, 7, $enrollment->fecha_matricula);
+            $worksheet->write($row, 8, $enrollment->ultimo_acceso);
+            $worksheet->write($row, 9, $enrollment->fecha_certificado);
+            $worksheet->write($row, 10, $enrollment->estado);
+            $row++;
         }
-        $row++;
+        
+        // Liberar memoria explícitamente
+        unset($enrollments);
+        
+        // Avanzar al siguiente chunk
+        $offset += $chunksize;
     }
 
     $workbook->close();
@@ -435,13 +522,12 @@ function report_customcajasan_export_spreadsheet($headers, $data, $filename, $fo
 }
 
 /**
- * Export data to CSV format.
+ * Export data to CSV format con optimización para grandes conjuntos de datos
  *
- * @param array $headers The headers for the data.
- * @param array $data The rows of data.
+ * @param array $filters Filter parameters for generating the data to export
  * @param string $filename The base name of the file without extension.
  */
-function report_customcajasan_export_csv($headers, $data, $filename) {
+function report_customcajasan_export_csv($filters, $filename) {
     // Clear output buffers
     while (ob_get_level()) {
         ob_end_clean();
@@ -458,11 +544,54 @@ function report_customcajasan_export_csv($headers, $data, $filename) {
     $output = fopen('php://output', 'w');
     
     // Write headers
+    $headers = array(
+        get_string('column_identificacion', 'block_report_customcajasan'),
+        get_string('column_nombres', 'block_report_customcajasan'),
+        get_string('column_apellidos', 'block_report_customcajasan'),
+        get_string('column_correo', 'block_report_customcajasan'),
+        get_string('column_curso', 'block_report_customcajasan'),
+        get_string('column_categoria', 'block_report_customcajasan'),
+        get_string('column_unidad', 'block_report_customcajasan'),
+        get_string('column_fecha_matricula', 'block_report_customcajasan'),
+        get_string('column_ultimo_acceso', 'block_report_customcajasan'),
+        get_string('column_fecha_certificado', 'block_report_customcajasan'),
+        get_string('column_estado', 'block_report_customcajasan')
+    );
     fputcsv($output, $headers);
     
-    // Write data
-    foreach ($data as $record) {
-        fputcsv($output, $record);
+    // OPTIMIZACIÓN: Procesar los datos por chunks para evitar agotamiento de memoria
+    $chunksize = REPORT_CUSTOMCAJASAN_CHUNK_SIZE;
+    $offset = 0;
+    $total = report_customcajasan_count_data($filters);
+    
+    // Procesar los datos en chunks para evitar problemas de memoria
+    while ($offset < $total) {
+        $enrollments = report_customcajasan_get_data($filters, $offset, $chunksize);
+        
+        foreach ($enrollments as $enrollment) {
+            fputcsv($output, array(
+                $enrollment->identificacion,
+                $enrollment->nombres,
+                $enrollment->apellidos,
+                $enrollment->correo,
+                $enrollment->curso,
+                $enrollment->categoria,
+                $enrollment->unidad,
+                $enrollment->fecha_matricula,
+                $enrollment->ultimo_acceso,
+                $enrollment->fecha_certificado,
+                $enrollment->estado
+            ));
+        }
+        
+        // Liberar memoria explícitamente
+        unset($enrollments);
+        
+        // Enviar el buffer al navegador
+        flush();
+        
+        // Avanzar al siguiente chunk
+        $offset += $chunksize;
     }
     
     fclose($output);
