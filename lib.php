@@ -98,13 +98,13 @@ function report_customcajasan_get_data($filters, $limitfrom = null, $limitnum = 
                 NULL AS fecha_certificado";
     }
     
-    // Status determination with updated status values
+    // Status determination with updated status values - prioridad corregida
     $sql .= ",
             CASE 
+                WHEN (cert.id IS NULL) THEN 'SOLO CONSULTA'
                 WHEN (ci.id IS NOT NULL OR cc.timecompleted IS NOT NULL) THEN 'APROBADO'
                 WHEN (l.id IS NOT NULL OR cc.timestarted IS NOT NULL) THEN 'EN CURSO'
                 WHEN (l.id IS NULL AND (cc.timestarted IS NULL OR cc.timestarted = 0)) THEN 'NO INICIADO'
-                WHEN (cert.id IS NULL) THEN 'SOLO CONSULTA'
                 ELSE 'NO INICIADO'
             END AS estado";
     
@@ -189,11 +189,11 @@ function report_customcajasan_get_data($filters, $limitfrom = null, $limitnum = 
     // Status filter with updated values
     if (!empty($filters['estado'])) {
         if ($filters['estado'] === 'APROBADO') {
-            $sql .= " AND (ci.id IS NOT NULL OR cc.timecompleted IS NOT NULL)";
+            $sql .= " AND cert.id IS NOT NULL AND (ci.id IS NOT NULL OR cc.timecompleted IS NOT NULL)";
         } else if ($filters['estado'] === 'EN CURSO') {
-            $sql .= " AND (l.id IS NOT NULL OR cc.timestarted IS NOT NULL) AND cc.timecompleted IS NULL AND ci.id IS NULL";
+            $sql .= " AND cert.id IS NOT NULL AND (l.id IS NOT NULL OR cc.timestarted IS NOT NULL) AND cc.timecompleted IS NULL AND ci.id IS NULL";
         } else if ($filters['estado'] === 'NO INICIADO') {
-            $sql .= " AND l.id IS NULL AND (cc.timestarted IS NULL OR cc.timestarted = 0) AND cc.timecompleted IS NULL AND ci.id IS NULL";
+            $sql .= " AND cert.id IS NOT NULL AND l.id IS NULL AND (cc.timestarted IS NULL OR cc.timestarted = 0) AND cc.timecompleted IS NULL AND ci.id IS NULL";
         } else if ($filters['estado'] === 'SOLO CONSULTA') {
             if ($cert_table_exists) {
                 $sql .= " AND cert.id IS NULL";
@@ -254,21 +254,17 @@ function report_customcajasan_count_data($filters) {
     // Only include these JOINs if needed for filters
     $need_cert_joins = $cert_table_exists && 
                       (!empty($filters['estado']) && 
-                       in_array($filters['estado'], ['APROBADO']));
+                       in_array($filters['estado'], ['APROBADO', 'EN CURSO', 'NO INICIADO', 'SOLO CONSULTA']));
                       
     $need_completion_joins = $completion_table_exists && 
                             (!empty($filters['estado']) && 
-                             in_array($filters['estado'], ['APROBADO', 'EN CURSO']));
+                             in_array($filters['estado'], ['APROBADO', 'EN CURSO', 'NO INICIADO']));
     
-    $need_log_join = empty($filters['estado']) || $filters['estado'] === 'EN CURSO';
+    $need_log_join = empty($filters['estado']) || $filters['estado'] === 'EN CURSO' || $filters['estado'] === 'NO INICIADO';
     
     // Add minimal joins based on what's needed for the filters
     if ($need_log_join) {
         $sql .= " LEFT JOIN {logstore_standard_log} l ON l.userid = u.id AND l.courseid = c.id";
-    }
-    
-    if (!empty($filters['estado']) && $filters['estado'] === 'SOLO CONSULTA') {
-        $sql .= " LEFT JOIN {course_modules} cm ON cm.course = c.id";
     }
     
     if ($need_completion_joins) {
@@ -311,12 +307,12 @@ function report_customcajasan_count_data($filters) {
         $params['lastname'] = $filters['lastname'] . '%';
     }
     
-    // Status filter - updated with new status values
+    // Status filter - updated with new status values and corrected logic
     if (!empty($filters['estado'])) {
         if ($filters['estado'] === 'APROBADO') {
-            $sql .= " AND (ci.id IS NOT NULL OR cc.timecompleted IS NOT NULL)";
+            $sql .= " AND cert.id IS NOT NULL AND (ci.id IS NOT NULL OR cc.timecompleted IS NOT NULL)";
         } else if ($filters['estado'] === 'EN CURSO') {
-            $sql .= " AND (l.id IS NOT NULL OR cc.timestarted IS NOT NULL)";
+            $sql .= " AND cert.id IS NOT NULL AND (l.id IS NOT NULL OR cc.timestarted IS NOT NULL)";
             if ($need_completion_joins) {
                 $sql .= " AND cc.timecompleted IS NULL";
             }
@@ -324,7 +320,7 @@ function report_customcajasan_count_data($filters) {
                 $sql .= " AND ci.id IS NULL";
             }
         } else if ($filters['estado'] === 'NO INICIADO') {
-            $sql .= " AND l.id IS NULL";
+            $sql .= " AND cert.id IS NOT NULL AND l.id IS NULL";
             if ($need_completion_joins) {
                 $sql .= " AND (cc.timestarted IS NULL OR cc.timestarted = 0) AND cc.timecompleted IS NULL";
             }

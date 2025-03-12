@@ -52,7 +52,7 @@ $enddate = optional_param('enddate', '', PARAM_TEXT);
 $download = optional_param('download', '', PARAM_TEXT);
 $format = optional_param('format', 'excel', PARAM_ALPHA);
 $page = optional_param('page', 0, PARAM_INT);
-$perpage = 100; // Number of records per page
+$perpage = optional_param('perpage', 100, PARAM_INT);
 
 // Check if at least one filter is applied for initial data load
 $filter_selected = !empty($categoryid) || !empty($courseid) || !empty($idnumber) || 
@@ -374,6 +374,20 @@ if (!$filter_selected) {
 }
 
 echo html_writer::end_div(); // End report-results
+
+// Añadir el selector de registros por página
+echo html_writer::start_div('per-page-selector mb-3');
+echo html_writer::tag('label', get_string('records_per_page', 'block_report_customcajasan') . ':', array('for' => 'perpage', 'class' => 'mr-2'));
+$perpageoptions = array(
+    '20' => '20',
+    '50' => '50',
+    '100' => '100',
+    '200' => '200',
+    '500' => '500',
+    '0' => get_string('all_records', 'block_report_customcajasan')
+);
+echo html_writer::select($perpageoptions, 'perpage', $perpage, false, array('class' => 'form-control d-inline w-auto', 'id' => 'perpage'));
+echo html_writer::end_div();
 
 // Download options - This stays static since downloads need a page refresh
 echo html_writer::start_div('download-options mt-3');

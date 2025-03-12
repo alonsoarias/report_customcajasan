@@ -82,6 +82,11 @@ try {
     $page = optional_param('page', 0, PARAM_INT);
     $perpage = optional_param('perpage', 100, PARAM_INT);
     
+    // Si perpage es 0, mostramos todos los registros
+    if ($perpage == 0) {
+        $perpage = PHP_INT_MAX; // Usar un valor grande para mostrar todos los registros
+    }
+    
     // Get total count using optimized query
     $totalcount = report_customcajasan_count_data($filters);
     

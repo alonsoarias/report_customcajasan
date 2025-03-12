@@ -106,6 +106,20 @@
     font-weight: bold;
 }
 
+/* Estilo para el selector de registros por página */
+.per-page-selector {
+    text-align: right;
+    margin-top: 10px;
+}
+
+.per-page-selector label {
+    font-weight: bold;
+}
+
+.per-page-selector select {
+    min-width: 80px;
+}
+
 /* Estilos para paginación */
 .pagination {
     display: flex;

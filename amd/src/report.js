@@ -10,6 +10,7 @@ define(['jquery', 'core/notification', 'core/str'], function($, Notification, St
     // State management for current page and filters
     var state = {
         currentPage: 0,
+        perPage: 100, // Default value
         filter: {}
     };
 
@@ -38,6 +39,12 @@ define(['jquery', 'core/notification', 'core/str'], function($, Notification, St
         // Get filter values
         var formData = $('#report-form').serialize();
         formData += '&page=' + state.currentPage;
+        
+        // Add perpage parameter if set
+        if (state.perPage !== undefined) {
+            formData += '&perpage=' + state.perPage;
+        }
+        
         formData += '&sesskey=' + M.cfg.sesskey;
 
         // Make AJAX request
@@ -265,6 +272,14 @@ define(['jquery', 'core/notification', 'core/str'], function($, Notification, St
                 updateDownloadForm(); // Actualizar campos ocultos después del debounce
             }, 500); // 500ms debounce delay
         });
+        
+        // Handle per page change
+        $('#perpage').on('change', function() {
+            var perpage = parseInt($(this).val());
+            state.perPage = perpage; // Store in state
+            state.currentPage = 0; // Reset to first page when changing page size
+            loadReportData();
+        });
 
         // Initialize download button to update form fields before submission
         $('#downloadForm').on('submit', function() {
@@ -310,6 +325,9 @@ define(['jquery', 'core/notification', 'core/str'], function($, Notification, St
                 startdate: $('#startdate').val(),
                 enddate: $('#enddate').val()
             };
+            
+            // Initialize perPage
+            state.perPage = $('#perpage').val() ? parseInt($('#perpage').val()) : 100;
 
             if (hasFilters) {
                 loadReportData();

@@ -66,6 +66,10 @@ $string['option_download_excel'] = 'Excel';
 $string['option_download_ods'] = 'ODS';
 $string['option_download_csv'] = 'CSV';
 
+// Opciones de paginación
+$string['records_per_page'] = 'Registros por página';
+$string['all_records'] = 'Todos los registros';
+
 // Otros
 $string['report_title'] = 'Informe de Seguimiento y Estado de Cursos';
 $string['btn_download'] = 'Descargar';
