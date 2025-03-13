@@ -119,11 +119,11 @@ function report_customcajasan_get_data_chunk($filters, $limitfrom, $limitnum, $c
                 u.department AS unidad,
                 FROM_UNIXTIME(ue.timestart) AS fecha_matricula";
     
-    // Add last access to course - optimizado para evitar subconsulta cuando sea posible
-    $sql .= ", (SELECT 
-                  FROM_UNIXTIME(MAX(la.timeaccess)) 
-                FROM {user_lastaccess} la 
-                WHERE la.userid = u.id AND la.courseid = c.id) AS ultimo_acceso";
+    // Add last access to course - optimizado para utilizar el JOIN directo
+    $sql .= ", CASE WHEN la.timeaccess IS NOT NULL AND la.timeaccess > 0 
+                THEN FROM_UNIXTIME(la.timeaccess) 
+                ELSE NULL 
+              END AS ultimo_acceso";
     
     // Certificate columns - optimizar JOINs para certificados
     $need_cert_joins = $cert_table_exists && 
@@ -146,37 +146,41 @@ function report_customcajasan_get_data_chunk($filters, $limitfrom, $limitnum, $c
                 NULL AS fecha_certificado";
     }
     
-    // Status determination with updated and optimized logic
+    // Status determination with updated and optimized logic - corregido para mantener consistencia con último acceso
     $sql .= ",
             CASE 
                 WHEN (cert.id IS NULL) THEN 'SOLO CONSULTA'
                 WHEN (ci.id IS NOT NULL OR cc.timecompleted IS NOT NULL) THEN 'APROBADO'
-                WHEN (l.id IS NOT NULL OR cc.timestarted IS NOT NULL) THEN 'EN CURSO'
+                WHEN (la.timeaccess IS NOT NULL AND la.timeaccess > 0) THEN 'EN CURSO'
                 ELSE 'NO INICIADO'
             END AS estado";
     
-    // FROM clause with optimized JOINs
+    // FROM clause with required tables - incluir solo cursos y categorías visibles
     $sql .= "
             FROM {user_enrolments} ue
             JOIN {enrol} e ON ue.enrolid = e.id
-            JOIN {course} c ON e.courseid = c.id
-            JOIN {course_categories} cat ON c.category = cat.id
-            JOIN {user} u ON ue.userid = u.id";
+            JOIN {course} c ON e.courseid = c.id AND c.visible = 1
+            JOIN {course_categories} cat ON c.category = cat.id AND cat.visible = 1
+            JOIN {user} u ON ue.userid = u.id
+            LEFT JOIN {user_lastaccess} la ON la.userid = u.id AND la.courseid = c.id";
     
-    // Solo incluir log si es necesario para la consulta (optimización de JOIN)
-    if (!isset($filters['estado']) || $filters['estado'] === '' || 
-        in_array($filters['estado'], ['EN CURSO', 'NO INICIADO'])) {
-        // Use índice para mejorar rendimiento del JOIN
-        $sql .= " LEFT JOIN {logstore_standard_log} l ON l.userid = u.id AND l.courseid = c.id";
-    } else {
-        // Dummy JOIN que no impacta rendimiento para mantener consistencia de estructura
-        $sql .= " LEFT JOIN (SELECT NULL AS id, NULL AS userid, NULL AS courseid) l ON l.userid = u.id AND l.courseid = c.id";
+    // Solo incluir course modules si son necesarios
+    $need_cm_join = true; // Always needed for status determination
+    if ($need_cm_join) {
+        $sql .= " LEFT JOIN (
+                    SELECT course, COUNT(*) as has_completion
+                    FROM {course_modules}
+                    WHERE completion > 0
+                    GROUP BY course
+                ) hc ON hc.course = c.id
+                LEFT JOIN {course_modules} cm ON cm.course = c.id";
     }
     
-    // Solo incluir completions si son necesarios
+    // Add conditional JOINs only if tables exist and needed
     if ($completion_table_exists) {
         $sql .= " LEFT JOIN {course_completions} cc ON cc.userid = u.id AND cc.course = c.id";
     } else {
+        // Use a lightweight join that won't return data but keeps the query structure intact
         $sql .= " LEFT JOIN (SELECT NULL AS timecompleted, NULL AS timestarted, NULL AS userid, NULL AS course) cc 
                   ON cc.userid = u.id AND cc.course = c.id";
     }
@@ -229,11 +233,11 @@ function report_customcajasan_get_data_chunk($filters, $limitfrom, $limitnum, $c
         if ($filters['estado'] === 'APROBADO') {
             $sql .= " AND cert.id IS NOT NULL AND (ci.id IS NOT NULL OR cc.timecompleted IS NOT NULL)";
         } else if ($filters['estado'] === 'EN CURSO') {
-            $sql .= " AND cert.id IS NOT NULL AND (l.id IS NOT NULL OR cc.timestarted IS NOT NULL) 
+            $sql .= " AND cert.id IS NOT NULL AND (la.timeaccess IS NOT NULL AND la.timeaccess > 0) 
                      AND (cc.timecompleted IS NULL OR cc.timecompleted = 0) 
                      AND (ci.id IS NULL)";
         } else if ($filters['estado'] === 'NO INICIADO') {
-            $sql .= " AND cert.id IS NOT NULL AND (l.id IS NULL OR l.id = 0) 
+            $sql .= " AND cert.id IS NOT NULL AND (la.timeaccess IS NULL OR la.timeaccess = 0)
                      AND (cc.timestarted IS NULL OR cc.timestarted = 0)
                      AND (cc.timecompleted IS NULL OR cc.timecompleted = 0)
                      AND (ci.id IS NULL)";
@@ -291,26 +295,21 @@ function report_customcajasan_count_data($filters) {
     $sql = "SELECT COUNT(DISTINCT CONCAT(u.id, '_', c.id)) 
             FROM {user_enrolments} ue
             JOIN {enrol} e ON ue.enrolid = e.id
-            JOIN {course} c ON e.courseid = c.id
-            JOIN {course_categories} cat ON c.category = cat.id
-            JOIN {user} u ON ue.userid = u.id";
+            JOIN {course} c ON e.courseid = c.id AND c.visible = 1
+            JOIN {course_categories} cat ON c.category = cat.id AND cat.visible = 1
+            JOIN {user} u ON ue.userid = u.id
+            LEFT JOIN {user_lastaccess} la ON la.userid = u.id AND la.courseid = c.id";
     
     // Solo incluir JOINs si son necesarios para los filtros
     $need_cert_joins = $cert_table_exists && 
-                     (!empty($filters['estado']) && 
-                      in_array($filters['estado'], ['APROBADO', 'EN CURSO', 'NO INICIADO', 'SOLO CONSULTA']));
+                      (!empty($filters['estado']) && 
+                       in_array($filters['estado'], ['APROBADO', 'EN CURSO', 'NO INICIADO', 'SOLO CONSULTA']));
                       
     $need_completion_joins = $completion_table_exists && 
-                           (!empty($filters['estado']) && 
-                            in_array($filters['estado'], ['APROBADO', 'EN CURSO', 'NO INICIADO']));
-    
-    $need_log_join = empty($filters['estado']) || in_array($filters['estado'], ['EN CURSO', 'NO INICIADO']);
+                            (!empty($filters['estado']) && 
+                             in_array($filters['estado'], ['APROBADO', 'EN CURSO', 'NO INICIADO']));
     
     // Solo agregar JOINs si son realmente necesarios
-    if ($need_log_join) {
-        $sql .= " LEFT JOIN {logstore_standard_log} l ON l.userid = u.id AND l.courseid = c.id";
-    }
-    
     if ($need_completion_joins) {
         $sql .= " LEFT JOIN {course_completions} cc ON cc.userid = u.id AND cc.course = c.id";
     }
@@ -358,26 +357,26 @@ function report_customcajasan_count_data($filters) {
         $params['lastname'] = $filters['lastname'] . '%';
     }
     
-    // Simplified and optimized filters for estado
+    // Optimized status filters
     if (!empty($filters['estado'])) {
         if ($filters['estado'] === 'APROBADO') {
             $sql .= " AND cert.id IS NOT NULL AND (ci.id IS NOT NULL OR cc.timecompleted IS NOT NULL)";
         } else if ($filters['estado'] === 'EN CURSO') {
-            $sql .= " AND cert.id IS NOT NULL";
-            if ($need_log_join) {
-                $sql .= " AND (l.id IS NOT NULL OR cc.timestarted IS NOT NULL)";
-            }
+            $sql .= " AND cert.id IS NOT NULL AND (la.timeaccess IS NOT NULL AND la.timeaccess > 0)";
             if ($need_completion_joins) {
                 $sql .= " AND (cc.timecompleted IS NULL OR cc.timecompleted = 0)";
             }
-        } else if ($filters['estado'] === 'NO INICIADO') {
-            $sql .= " AND cert.id IS NOT NULL";
-            if ($need_log_join) {
-                $sql .= " AND (l.id IS NULL OR l.id = 0)";
+            if ($need_cert_joins) {
+                $sql .= " AND (ci.id IS NULL)";
             }
+        } else if ($filters['estado'] === 'NO INICIADO') {
+            $sql .= " AND cert.id IS NOT NULL AND (la.timeaccess IS NULL OR la.timeaccess = 0)";
             if ($need_completion_joins) {
                 $sql .= " AND (cc.timestarted IS NULL OR cc.timestarted = 0) 
                           AND (cc.timecompleted IS NULL OR cc.timecompleted = 0)";
+            }
+            if ($need_cert_joins) {
+                $sql .= " AND (ci.id IS NULL)";
             }
         } else if ($filters['estado'] === 'SOLO CONSULTA') {
             if ($need_cert_joins) {
@@ -577,6 +576,14 @@ function report_customcajasan_export_csv($filters, $filename) {
         $enrollments = report_customcajasan_get_data($filters, $offset, $chunksize);
         
         foreach ($enrollments as $enrollment) {
+            // Ajustar último acceso según el estado:
+            // - Para "NO INICIADO", mostrar "Nunca"
+            // - Para otros estados, mostrar la fecha normal
+            $ultimo_acceso = $enrollment->ultimo_acceso;
+            if ($enrollment->estado === 'NO INICIADO' || empty($ultimo_acceso)) {
+                $ultimo_acceso = get_string('never', 'block_report_customcajasan');
+            }
+            
             fputcsv($output, array(
                 $enrollment->identificacion,
                 $enrollment->nombres,
@@ -586,7 +593,7 @@ function report_customcajasan_export_csv($filters, $filename) {
                 $enrollment->categoria,
                 $enrollment->unidad,
                 $enrollment->fecha_matricula,
-                $enrollment->ultimo_acceso,
+                $ultimo_acceso,
                 $enrollment->fecha_certificado,
                 $enrollment->estado
             ));
@@ -607,31 +614,39 @@ function report_customcajasan_export_csv($filters, $filename) {
 }
 
 /**
- * Get all course categories
+ * Get all visible course categories (no hidden ones)
  *
- * @return array List of categories
+ * @return array List of visible categories
  */
 function report_customcajasan_get_categories() {
     global $DB;
     
-    return $DB->get_records('course_categories', null, 'name ASC', 'id, name, depth, path');
+    // Modificado para devolver solo categorías visibles (no ocultas)
+    return $DB->get_records('course_categories', array('visible' => 1), 'name ASC', 'id, name, depth, path');
 }
 
 /**
- * Get courses by category
+ * Get visible courses by category
  *
  * @param int $categoryid Category ID
- * @return array List of courses
+ * @return array List of visible courses
  */
 function report_customcajasan_get_courses($categoryid) {
     global $DB;
     
     $params = array();
-    $sql = "SELECT id, fullname FROM {course} WHERE 1=1";
+    
+    // Condición base: solo cursos visibles
+    $sql = "SELECT id, fullname FROM {course} WHERE visible = 1";
     
     if (!empty($categoryid)) {
-        $sql .= " AND category = :category";
-        $params['category'] = $categoryid;
+        // Verificar que la categoría seleccionada sea visible
+        $category_exists = $DB->record_exists('course_categories', array('id' => $categoryid, 'visible' => 1));
+        
+        if ($category_exists) {
+            $sql .= " AND category = :category";
+            $params['category'] = $categoryid;
+        }
     }
     
     $sql .= " ORDER BY fullname ASC";
