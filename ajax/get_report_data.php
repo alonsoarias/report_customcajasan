@@ -138,9 +138,7 @@ try {
                 array('target' => '_blank')
             );
             
-            // Ajustar último acceso según el estado:
-            // - Para "NO INICIADO", mostrar "Nunca"
-            // - Para otros estados, mostrar la fecha normal
+            // Ajustar último acceso para estado NO INICIADO
             $ultimo_acceso = $enrollment->ultimo_acceso;
             if ($enrollment->estado === 'NO INICIADO' || empty($ultimo_acceso)) {
                 $ultimo_acceso = get_string('never', 'block_report_customcajasan');
