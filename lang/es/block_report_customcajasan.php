@@ -53,6 +53,9 @@ $string['state_noiniciado'] = 'NO INICIADO';
 $string['state_soloconsulta'] = 'SOLO CONSULTA';
 $string['status_explanation'] = 'Estados';
 
+// Valores especiales
+$string['never'] = 'Nunca';
+
 // Opciones de formulario
 $string['option_all'] = 'Todos';
 $string['option_category'] = 'Categoría';
