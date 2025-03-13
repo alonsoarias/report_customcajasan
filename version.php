@@ -25,8 +25,8 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->version   = 2025031412;        // The current plugin version (Date: YYYYMMDDXX)
+$plugin->version   = 2025031414;        // The current plugin version (Date: YYYYMMDDXX)
 $plugin->requires  = 2022041900;        // Requires Moodle 4.0+
 $plugin->component = 'block_report_customcajasan'; // Full name of the plugin
 $plugin->maturity  = MATURITY_STABLE;
-$plugin->release   = '1.5.2';           // Correcciones en visualización de último acceso para estados
+$plugin->release   = '1.5.4';           // Filtrado de solo categorías y cursos visibles
