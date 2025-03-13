@@ -53,6 +53,9 @@ $string['state_noiniciado'] = 'NOT STARTED';
 $string['state_soloconsulta'] = 'REFERENCE ONLY';
 $string['status_explanation'] = 'Status Codes';
 
+// Special values
+$string['never'] = 'Never';
+
 // Form Options
 $string['option_all'] = 'All';
 $string['option_category'] = 'Category';
