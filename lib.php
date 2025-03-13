@@ -496,6 +496,14 @@ function report_customcajasan_export_spreadsheet($filters, $filename, $format, $
         $enrollments = report_customcajasan_get_data($filters, $offset, $chunksize);
         
         foreach ($enrollments as $enrollment) {
+            // Ajustar último acceso según el estado:
+            // - Para "NO INICIADO", mostrar "Nunca"
+            // - Para otros estados, mostrar la fecha normal
+            $ultimo_acceso = $enrollment->ultimo_acceso;
+            if ($enrollment->estado === 'NO INICIADO' || empty($ultimo_acceso)) {
+                $ultimo_acceso = get_string('never', 'block_report_customcajasan');
+            }
+            
             $worksheet->write($row, 0, $enrollment->identificacion);
             $worksheet->write($row, 1, $enrollment->nombres);
             $worksheet->write($row, 2, $enrollment->apellidos);
@@ -504,7 +512,7 @@ function report_customcajasan_export_spreadsheet($filters, $filename, $format, $
             $worksheet->write($row, 5, $enrollment->categoria);
             $worksheet->write($row, 6, $enrollment->unidad);
             $worksheet->write($row, 7, $enrollment->fecha_matricula);
-            $worksheet->write($row, 8, $enrollment->ultimo_acceso);
+            $worksheet->write($row, 8, $ultimo_acceso);
             $worksheet->write($row, 9, $enrollment->fecha_certificado);
             $worksheet->write($row, 10, $enrollment->estado);
             $row++;
