@@ -26,16 +26,23 @@
 require_once(__DIR__ . '/../../config.php');
 require_once($CFG->dirroot . '/blocks/report_customcajasan/lib.php');
 
-// Verify login and capabilities
+// Verify login
 require_login();
 $systemcontext = context_system::instance();
-require_capability('block/report_customcajasan:viewreport', $systemcontext);
+
+// Verificar permisos - permitir acceso a gestores o usuarios con la capacidad específica
+$can_view = has_capability('block/report_customcajasan:viewreport', $systemcontext);
+$is_manager = has_any_capability(['moodle/site:config', 'moodle/course:update'], $systemcontext);
+
+if (!$can_view && !$is_manager) {
+    throw new required_capability_exception($systemcontext, 'block/report_customcajasan:viewreport', 'nopermissions', '');
+}
 
 // Aumentar límites para permitir la generación de reportes grandes
 if (function_exists('set_time_limit')) {
     set_time_limit(0); // Sin límite de tiempo para procesar reportes grandes
 }
-// Aumentar memoria usando el valor definido por el administrador
+// Aumentar límite de memoria usando el valor definido por el administrador
 raise_memory_limit(MEMORY_EXTRA);
 
 // Page setup
