@@ -48,7 +48,7 @@ class block_report_customcajasan extends block_base {
      * @return stdClass The block content.
      */
     public function get_content() {
-        global $OUTPUT;
+        global $USER, $DB;
 
         if ($this->content !== null) {
             return $this->content;
@@ -58,20 +58,39 @@ class block_report_customcajasan extends block_base {
         $this->content->text = '';
         $this->content->footer = '';
 
-        $systemcontext = context_system::instance();
-        // Check if user has permission to view the report.
-        if (!has_capability('block/report_customcajasan:viewreport', $systemcontext)) {
+        // No mostrar nada si el usuario no está autenticado
+        if (!isloggedin()) {
             return $this->content;
         }
 
-        // Add link to the report.
-        $reporturl = new moodle_url('/blocks/report_customcajasan/report.php');
-        
-        $this->content->text = html_writer::tag('div', 
-            html_writer::link($reporturl, 
-                get_string('enrollment_report', 'block_report_customcajasan'), 
-                ['class' => 'btn btn-primary btn-block mb-2']),
-            ['class' => 'report-links']);
+        $systemcontext = context_system::instance();
+
+        // Verificar si el usuario es gestor o tiene capacidad explícita
+        $can_view = has_capability('block/report_customcajasan:viewreport', $systemcontext);
+        $is_manager = has_any_capability(['moodle/site:config', 'moodle/course:update'], $systemcontext);
+
+        if ($can_view || $is_manager) {
+            // El usuario tiene permiso - mostrar enlace al informe
+            $reporturl = new moodle_url('/blocks/report_customcajasan/report.php');
+            
+            $this->content->text = html_writer::tag('div', 
+                html_writer::link($reporturl, 
+                    get_string('enrollment_report', 'block_report_customcajasan'), 
+                    ['class' => 'btn btn-primary btn-block mb-2']),
+                ['class' => 'report-links']);
+                
+            // Si el usuario no tiene la capacidad explícita pero es gestor, mostrar mensaje explicativo
+            if ($is_manager && !$can_view) {
+                $this->content->footer = html_writer::tag('div',
+                    'Acceso proporcionado por rol de gestión del sitio',
+                    ['class' => 'small text-muted']);
+            }
+        } else {
+            // El usuario no tiene permiso - mostrar mensaje informativo
+            $this->content->text = html_writer::tag('div',
+                get_string('access_denied', 'block_report_customcajasan'),
+                ['class' => 'alert alert-info']);
+        }
 
         return $this->content;
     }
@@ -86,8 +105,8 @@ class block_report_customcajasan extends block_base {
             'admin' => true,
             'site-index' => true,
             'my' => true,
-            'course' => true,      // Añadido para mostrar en páginas de curso
-            'course-index' => true // Añadido para mostrar en índice de cursos
+            'course' => true,
+            'course-index' => true
         ];
     }
 
