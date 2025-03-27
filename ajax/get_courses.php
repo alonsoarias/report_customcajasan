@@ -44,10 +44,16 @@ if (!confirm_sesskey()) {
     die();
 }
 
-// Check capability
+// Check capability or manager role
 $systemcontext = context_system::instance();
 try {
-    require_capability('block/report_customcajasan:viewreport', $systemcontext);
+    // Verificar permisos - permitir acceso a gestores o usuarios con la capacidad específica
+    $can_view = has_capability('block/report_customcajasan:viewreport', $systemcontext);
+    $is_manager = has_any_capability(['moodle/site:config', 'moodle/course:update'], $systemcontext);
+    
+    if (!$can_view && !$is_manager) {
+        throw new required_capability_exception($systemcontext, 'block/report_customcajasan:viewreport', 'nopermissions', '');
+    }
 } catch (Exception $e) {
     $error = array(
         'success' => false,
