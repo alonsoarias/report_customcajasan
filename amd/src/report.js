@@ -147,7 +147,7 @@ define(['jquery', 'core/notification', 'core/str'], function($, Notification, St
      * Initialize the module with improved filter handling
      */
     function init() {
-        // Handle category change - update courses
+        // Handle category change - update courses pero NO cargar datos automáticamente
         $('#categoryid').on('change', function() {
             var categoryId = $(this).val();
             state.filter.category = categoryId;
@@ -191,29 +191,23 @@ define(['jquery', 'core/notification', 'core/str'], function($, Notification, St
                                 }));
                             });
                         }
-                        // Reset to page 0 and load data
-                        state.currentPage = 0;
-                        loadReportData();
-                        updateDownloadForm(); // Actualizar campos ocultos después de cargar cursos
+                        // Solo actualizar formulario de descarga, NO cargar datos
+                        updateDownloadForm();
                     },
                     error: function(xhr, status) {
                         // Show error using Moodle's notification API
                         Notification.exception({message: 'Error loading courses: ' + status});
-                        // Reset to page 0 and load data anyway
-                        state.currentPage = 0;
-                        loadReportData();
-                        updateDownloadForm(); // Actualizar campos ocultos incluso si hay error
+                        // Solo actualizar formulario de descarga, NO cargar datos
+                        updateDownloadForm();
                     }
                 });
             } else {
-                // If no category selected, reset to page 0 and load data
-                state.currentPage = 0;
-                loadReportData();
-                updateDownloadForm(); // Actualizar campos ocultos
+                // Solo actualizar formulario de descarga, NO cargar datos
+                updateDownloadForm();
             }
         });
 
-        // Alphabet filter functionality with improved handling
+        // Alphabet filter functionality with improved handling (mantener autoload)
         $('.alphabet-filter a').on('click', function(e) {
             e.preventDefault();
             var letter = $(this).data('letter');
@@ -229,39 +223,39 @@ define(['jquery', 'core/notification', 'core/str'], function($, Notification, St
             $(this).closest('.alphabet-filter').find('a').removeClass('active');
             $(this).addClass('active');
 
-            // Reset to page 0 and load data
+            // Reset to page 0 and load data (mantener autoload)
             state.currentPage = 0;
             loadReportData();
-            updateDownloadForm(); // Actualizar campos ocultos después de filtrar por letra
+            updateDownloadForm();
         });
 
-        // Handle filter form submission
+        // Handle filter form submission - siempre cargar al enviar formulario
         $('#report-form').on('submit', function(e) {
             e.preventDefault();
             state.currentPage = 0;
             loadReportData();
-            updateDownloadForm(); // Actualizar campos ocultos después de enviar formulario
+            updateDownloadForm();
         });
 
-        // Handle filter changes with clean event handling
+        // Handle selectbox changes - solo actualizar estado, NO cargar datos
         $('#estado, #courseid').on('change', function() {
             var id = $(this).attr('id');
             state.filter[id] = $(this).val();
             state.currentPage = 0;
-            loadReportData();
-            updateDownloadForm(); // Actualizar campos ocultos después de cambiar selección
+            // Solo actualizar formulario de descarga, NO cargar datos
+            updateDownloadForm();
         });
 
-        // Handle date changes
+        // Handle date changes (mantener autoload)
         $('#startdate, #enddate').on('change', function() {
             var id = $(this).attr('id');
             state.filter[id] = $(this).val();
             state.currentPage = 0;
             loadReportData();
-            updateDownloadForm(); // Actualizar campos ocultos después de cambiar fecha
+            updateDownloadForm();
         });
 
-        // Handle idnumber input with debounce for better performance
+        // Handle idnumber input with debounce (mantener autoload)
         var idnumberTimer;
         $('#idnumber').on('input', function() {
             clearTimeout(idnumberTimer);
@@ -269,7 +263,7 @@ define(['jquery', 'core/notification', 'core/str'], function($, Notification, St
                 state.filter.idnumber = $('#idnumber').val();
                 state.currentPage = 0;
                 loadReportData();
-                updateDownloadForm(); // Actualizar campos ocultos después del debounce
+                updateDownloadForm();
             }, 500); // 500ms debounce delay
         });
         
@@ -287,7 +281,7 @@ define(['jquery', 'core/notification', 'core/str'], function($, Notification, St
             updateDownloadForm();
             
             // Opcional: Verificar que al menos un filtro esté aplicado
-            var hasFilters = $('#downloadForm input[name="categoryid"]').val() || 
+            var hasDownloadFilters = $('#downloadForm input[name="categoryid"]').val() || 
                              $('#downloadForm input[name="courseid"]').val() || 
                              $('#downloadForm input[name="estado"]').val() ||
                              $('#downloadForm input[name="idnumber"]').val() || 
@@ -296,7 +290,7 @@ define(['jquery', 'core/notification', 'core/str'], function($, Notification, St
                              $('#downloadForm input[name="startdate"]').val() || 
                              $('#downloadForm input[name="enddate"]').val();
             
-            if (!hasFilters) {
+            if (!hasDownloadFilters) {
                 // Mostrar una notificación si no hay filtros seleccionados
                 Notification.alert(
                     '',
@@ -310,10 +304,6 @@ define(['jquery', 'core/notification', 'core/str'], function($, Notification, St
 
         // Initial load if filters are set
         if ($('#report-results').length) {
-            var hasFilters = $('#categoryid').val() || $('#courseid').val() || $('#estado').val() ||
-                            $('#idnumber').val() || $('#firstname').val() || $('#lastname').val() ||
-                            $('#startdate').val() || $('#enddate').val();
-
             // Initialize state from current form values
             state.filter = {
                 category: $('#categoryid').val(),
@@ -329,9 +319,18 @@ define(['jquery', 'core/notification', 'core/str'], function($, Notification, St
             // Initialize perPage
             state.perPage = $('#perpage').val() ? parseInt($('#perpage').val()) : 100;
 
-            if (hasFilters) {
+            // Verificar si hay filtros de selectbox o de otros tipos
+            var hasSelectboxFilter = $('#categoryid').val() || $('#courseid').val() || $('#estado').val();
+            var hasOtherFilter = $('#idnumber').val() || $('#firstname').val() || $('#lastname').val() ||
+                                $('#startdate').val() || $('#enddate').val();
+
+            if (hasOtherFilter) {
+                // Si hay filtros de otro tipo, cargar datos
                 loadReportData();
-                updateDownloadForm(); // Actualizar campos ocultos en la carga inicial
+                updateDownloadForm();
+            } else if (hasSelectboxFilter) {
+                // Si solo hay filtros de selectbox, NO cargar datos automáticamente
+                updateDownloadForm();
             }
         }
 
