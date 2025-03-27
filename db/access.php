@@ -31,7 +31,8 @@ $capabilities = [
         'captype' => 'write',
         'contextlevel' => CONTEXT_BLOCK,
         'archetypes' => [
-            'manager' => CAP_ALLOW
+            'manager' => CAP_ALLOW,
+            'editingteacher' => CAP_ALLOW
         ],
         'clonepermissionsfrom' => 'moodle/site:manageblocks',
     ],
@@ -39,7 +40,8 @@ $capabilities = [
         'captype' => 'write',
         'contextlevel' => CONTEXT_SYSTEM,
         'archetypes' => [
-            'manager' => CAP_ALLOW
+            'manager' => CAP_ALLOW,
+            'editingteacher' => CAP_ALLOW
         ],
     ],
     'block/report_customcajasan:viewreport' => [
@@ -47,9 +49,8 @@ $capabilities = [
         'captype' => 'read',
         'contextlevel' => CONTEXT_SYSTEM,
         'archetypes' => [
-            'manager' => CAP_ALLOW
+            'manager' => CAP_ALLOW,
+            'editingteacher' => CAP_ALLOW
         ],
-        // Se ha eliminado la siguiente línea para permitir acceso a usuarios con rol gestor
-        // 'clonepermissionsfrom' => 'moodle/site:config',
     ],
 ];
