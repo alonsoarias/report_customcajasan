@@ -85,7 +85,9 @@ class block_report_customcajasan extends block_base {
         return [
             'admin' => true,
             'site-index' => true,
-            'my' => true
+            'my' => true,
+            'course' => true,      // Añadido para mostrar en páginas de curso
+            'course-index' => true // Añadido para mostrar en índice de cursos
         ];
     }
 
