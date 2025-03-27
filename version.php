@@ -25,8 +25,8 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->version   = 2025032700;        // The current plugin version (Date: YYYYMMDDXX)
+$plugin->version   = 2025032702;        // Incrementado para aplicar cambios de permisos
 $plugin->requires  = 2022041900;        // Requires Moodle 4.0+
 $plugin->component = 'block_report_customcajasan'; // Full name of the plugin
 $plugin->maturity  = MATURITY_STABLE;
-$plugin->release   = '1.6.0';           // Mejoras en carga selectiva de datos y acceso para rol gestor
+$plugin->release   = '1.6.2';           // Mejoras en verificación de permisos de gestor
