@@ -49,6 +49,7 @@ $capabilities = [
         'archetypes' => [
             'manager' => CAP_ALLOW
         ],
-        'clonepermissionsfrom' => 'moodle/site:config',
+        // Se ha eliminado la siguiente línea para permitir acceso a usuarios con rol gestor
+        // 'clonepermissionsfrom' => 'moodle/site:config',
     ],
 ];
